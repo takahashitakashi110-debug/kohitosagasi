@@ -15,8 +15,10 @@ export function initCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D 
     const dpr = window.devicePixelRatio || 1;
     canvas.style.width = `${WIDTH * scale}px`;
     canvas.style.height = `${HEIGHT * scale}px`;
-    canvas.width = Math.round(WIDTH * dpr);
-    canvas.height = Math.round(HEIGHT * dpr);
+    // バッキングストアは「表示倍率 × DPR」で確保する。
+    // dpr だけを掛けると、画面が 360x640 より大きいときに拡大されてぼやける。
+    canvas.width = Math.round(WIDTH * scale * dpr);
+    canvas.height = Math.round(HEIGHT * scale * dpr);
     context.setTransform(canvas.width / WIDTH, 0, 0, canvas.height / HEIGHT, 0, 0);
   };
   window.addEventListener('resize', resize);
