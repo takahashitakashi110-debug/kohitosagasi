@@ -1,29 +1,14 @@
 import { TEXT } from '../data/text';
-import { KOHITO } from '../data/kohito';
-import { SPAWN } from '../data/spots';
 import type { Input } from '../engine/input';
-import { remainingCandidates } from '../game/deduction';
-import { createKohito, tickKohito } from '../game/kohito';
+import { tickKohito } from '../game/kohito';
 import type { KohitoRuntime } from '../game/kohito';
-import type { GameState, SpotId } from '../game/state';
+import type { GameState } from '../game/state';
 import { distance, fieldCamera } from '../game/world';
 import { drawKohito, drawPlayer } from '../render/kohitoArt';
 import { P } from '../render/palette';
 import { drawObjects, drawTiles } from '../render/tiles';
 import type { UI } from '../render/ui';
 
-export function enterField(game: GameState, spot: SpotId): void {
-  const visitKey = `${game.save.day}:${game.save.time}:${spot}`;
-  if (visitKey !== game.visitKey) {
-    game.escaped.clear(); game.visitKey = visitKey;
-    game.player = { ...SPAWN };
-    game.kohitos = Object.values(KOHITO)
-      .filter(k => k.spot === spot && k.time === game.save.time && (k.id !== 'tarejiri' || remainingCandidates(game.save.hints).length === 1))
-      .map(k => createKohito(k.id, k.x, k.y));
-    game.traces = remainingCandidates(game.save.hints).length > 1 ? Array.from({ length: 1 + Math.floor(Math.random() * 2) }, () => ({ x: 245 + Math.random() * 120, y: 320 + Math.random() * 100 })) : [];
-  }
-  game.scene = 'field'; game.feedback = null;
-}
 export function nearestKohito(game: GameState): KohitoRuntime | undefined {
   return game.kohitos.filter(k => !k.escaped && k.fleeing === 0 && distance(k, game.player) <= 120).sort((a, b) => distance(a, game.player) - distance(b, game.player))[0];
 }

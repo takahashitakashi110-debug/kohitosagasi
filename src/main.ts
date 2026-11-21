@@ -2,13 +2,10 @@
 import { startLoop } from './engine/loop';
 import { Input } from './engine/input';
 import { TEXT } from './data/text';
-import { KOHITO } from './data/kohito';
-import { SPOTS, SPAWN } from './data/spots';
-import { createGame, freshSave, advanceLocation, nextDay, SPOT_IDS } from './game/state';
-import type { SpotId } from './game/state';
+import { SPOTS } from './data/spots';
+import { createGame, freshSave, nextDay, SPOT_IDS } from './game/state';
+import { enterField, travel } from './game/flow';
 import { loadSave, hasSave, writeSave, deleteSave } from './game/save';
-import { remainingCandidates } from './game/deduction';
-import { createKohito } from './game/kohito';
 import { clamp } from './game/photo';
 import { movePlayer } from './game/world';
 import { UI } from './render/ui';
@@ -29,30 +26,8 @@ canvas.setAttribute('aria-label', `${TEXT.title}. ${TEXT.keyboard}. ${TEXT.keybo
 const ui = new UI(initCanvas(canvas));
 const input = new Input(canvas);
 const game = createGame(loadSave(), hasSave());
-function enterField(): void {
-  const save = game.save;
-  const key = `${save.day}:${save.time}:${save.location}`;
-  if (game.visitKey !== key) {
-    game.visitKey = key;
-    game.player = { ...SPAWN };
-    game.kohitos = Object.values(KOHITO).filter(def => def.spot === save.location && def.time === save.time &&
-      (def.id !== 'tarejiri' || remainingCandidates(save.hints).length === 1) && !game.escaped.has(def.id))
-      .map(def => createKohito(def.id, def.x, def.y));
-    game.traces = remainingCandidates(save.hints).length > 1
-      ? Array.from({ length: Math.random() < 0.5 ? 1 : 2 }, () => ({ x: 240 + Math.random() * 120, y: 340 + Math.random() * 60 })) : [];
-  }
-  game.scene = 'field'; game.moving = false; game.feedback = null;
-}
-function travel(destination: SpotId | 'home'): void {
-  const previousTime = game.save.time;
-  const result = advanceLocation(game.save, destination);
-  if (previousTime !== game.save.time) game.escaped.clear();
-  game.scene = result;
-  if (result === 'field') enterField();
-  writeSave(game.save); game.hasSave = true;
-}
 function leaveField(): void {
-  if (game.save.time === 'night') travel('home'); else { game.scene = 'map'; game.moving = false; }
+  if (game.save.time === 'night') travel(game, 'home'); else { game.scene = 'map'; game.moving = false; }
 }
 function openAlbum(): void {
   if (game.scene === 'album') { game.scene = game.returnScene; return; }
@@ -79,15 +54,15 @@ function command(action: string): void {
     } else if (action === 'continue' || action === 'primary') {
       game.save = loadSave(); game.escaped.clear(); game.visitKey = '';
       game.scene = game.save.cleared ? 'ending' : game.save.location === 'home' ? game.save.time === 'morning' ? 'map' : 'dayend' : 'field';
-      if (game.scene === 'field') enterField();
+      if (game.scene === 'field') enterField(game);
     }
   } else if (game.scene === 'map') {
     if (action === 'nav:right' || action === 'nav:down') game.mapChoice = (game.mapChoice + 1) % 5;
     if (action === 'nav:left' || action === 'nav:up') game.mapChoice = (game.mapChoice + 4) % 5;
-    if (action === 'primary') { travel(SPOT_IDS[game.mapChoice] ?? 'home'); input.suppressCamera(); return; }
+    if (action === 'primary') { travel(game, SPOT_IDS[game.mapChoice] ?? 'home'); input.suppressCamera(); return; }
     const destination = SPOT_IDS.find(id => action === `spot:${id}`);
-    if (destination) travel(destination);
-    if (action === 'home') travel('home');
+    if (destination) travel(game, destination);
+    if (action === 'home') travel(game, 'home');
   } else if (game.scene === 'field' && action === 'map') leaveField();
   else if (game.scene === 'album') {
     if (action === 'primary') { game.scene = game.returnScene; return; }
