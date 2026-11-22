@@ -1,5 +1,6 @@
 import type { KohitoId } from '../game/state';
 import { P } from './palette';
+import { roundedRectPath } from './shapes';
 
 function ellipse(c: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, color: string): void {
   c.fillStyle = color; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); c.fill();
@@ -31,7 +32,7 @@ function drawUrasumi(c: CanvasRenderingContext2D, _elapsed: number, special: boo
 }
 
 function drawHaritsuki(c: CanvasRenderingContext2D, elapsed: number, special: boolean): void {
-  c.fillStyle = P.skin; c.beginPath(); c.roundRect(-9, -29, 18, 37, 4); c.fill();
+  c.fillStyle = P.skin; c.beginPath(); roundedRectPath(c, -9, -29, 18, 37, 4); c.fill();
   c.strokeStyle = P.shade; c.lineCap = 'round';
   for (let i = 0; i < 5; i++) {
     c.lineWidth = i === 3 ? 1.2 + Math.sin(elapsed * 2) * 0.6 : 0.8;

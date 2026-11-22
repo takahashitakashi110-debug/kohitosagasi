@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { drawKohito } from '../src/render/kohitoArt';
 import { P } from '../src/render/palette';
+import { UI } from '../src/render/ui';
 import { KOHITO_IDS } from '../src/game/state';
 import type { KohitoId } from '../src/game/state';
 
@@ -116,6 +117,7 @@ class RecordingContext {
     if (this.fillStyle === P.white && this.globalAlpha > 0) this.whiteEllipses.push(...this.ellipses);
   }
   stroke(): void { this.record(this.path, this.strokeStyle, true); }
+  fillText(_value: string, _x: number, _y: number): void { /* UIの文字は図形の範囲集計から除く。 */ }
   private rectangle(x: number, y: number, w: number, h: number): Bounds {
     const points = [this.point(x, y), this.point(x + w, y), this.point(x, y + h), this.point(x + w, y + h)];
     return { left: Math.min(...points.map(p => p.x)), right: Math.max(...points.map(p => p.x)),
@@ -135,8 +137,13 @@ class RecordingContext {
   }
 }
 
-function draw(id: KohitoId, elapsed = 0, special = false, hidden = false): RecordingContext {
+function recordingContext(nativeRoundRect = true): RecordingContext {
   const c = new RecordingContext();
+  if (!nativeRoundRect) Object.defineProperty(c, 'roundRect', { value: undefined });
+  return c;
+}
+function draw(id: KohitoId, elapsed = 0, special = false, hidden = false, nativeRoundRect = true): RecordingContext {
+  const c = recordingContext(nativeRoundRect);
   drawKohito(c as unknown as CanvasRenderingContext2D, id, 0, 0, elapsed, special, hidden);
   return c;
 }
@@ -178,12 +185,13 @@ describe('recording context', () => {
 });
 
 describe('art bounds and drawing budget', () => {
-  it.each(states)('$id special=$special hidden=$hidden stays within the scoring rectangle at all 61 times', ({ id, special, hidden }) => {
+  const variants = states.flatMap(state => [true, false].map(nativeRoundRect => ({ ...state, nativeRoundRect })));
+  it.each(variants)('$id special=$special hidden=$hidden nativeRoundRect=$nativeRoundRect stays within the scoring rectangle at all 61 times', ({ id, special, hidden, nativeRoundRect }) => {
     const limit = id !== 'tarejiri' ? { left: -20, top: -30, right: 24, bottom: 16 }
       : hidden ? { left: -6, top: -7, right: 20, bottom: 20 }
         : { left: -15, top: -37, right: 20, bottom: 25 };
     for (let tick = 0; tick <= 60; tick++) {
-      const c = draw(id, tick / 10, special, hidden); const b = localBounds(c);
+      const c = draw(id, tick / 10, special, hidden, nativeRoundRect); const b = localBounds(c);
       const message = `${id}, t=${tick / 10}, special=${special}, hidden=${hidden}: ${JSON.stringify(b)}`;
       expect(b.left, message).toBeGreaterThanOrEqual(limit.left - 1e-9);
       expect(b.top, message).toBeGreaterThanOrEqual(limit.top - 1e-9);
@@ -191,6 +199,23 @@ describe('art bounds and drawing budget', () => {
       expect(b.bottom, message).toBeLessThanOrEqual(limit.bottom + 1e-9);
       expect(c.drawCalls, message).toBeLessThanOrEqual(30);
     }
+  });
+});
+
+describe('UI rounded rectangles', () => {
+  it.each([true, false])('draws panels and buttons, nativeRoundRect=%s', nativeRoundRect => {
+    const c = recordingContext(nativeRoundRect);
+    if (!nativeRoundRect) expect(c.roundRect).toBeUndefined();
+    const ui = new UI(c as unknown as CanvasRenderingContext2D);
+    expect(() => {
+      ui.panel(10, 20, 100, 40);
+      ui.button('test', 'test-action', 20, 80, 120, 44, true);
+    }).not.toThrow();
+    expect(c.painted).toHaveLength(3);
+    expect(c.painted[0]).toEqual({ left: 10, top: 20, right: 110, bottom: 60 });
+    expect(c.painted[1]).toEqual({ left: 20, top: 80, right: 140, bottom: 124 });
+    expect(c.painted[2]).toEqual({ left: 19.5, top: 79.5, right: 140.5, bottom: 124.5 });
+    expect(ui.buttons).toEqual([{ x: 20, y: 80, w: 120, h: 44, action: 'test-action' }]);
   });
 });
 

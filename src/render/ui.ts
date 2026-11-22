@@ -1,5 +1,6 @@
 import type { HitButton } from '../engine/input';
 import { P } from './palette';
+import { roundedRectPath } from './shapes';
 
 export class UI {
   buttons: HitButton[] = [];
@@ -23,7 +24,7 @@ export class UI {
   }
   panel(x: number, y: number, w: number, h: number, fill = P.cream): void {
     const ctx = this.ctx;
-    ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x, y, w, h, 12); ctx.fill();
+    ctx.fillStyle = fill; ctx.beginPath(); roundedRectPath(ctx, x, y, w, h, 12); ctx.fill();
   }
   button(label: string, action: string, x: number, y: number, w: number, h = 44, active = false): void {
     this.panel(x, y, w, h, active ? P.green : P.cream);
