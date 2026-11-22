@@ -1,4 +1,5 @@
 export const TEXT = {
+  soundOn: '音あり (M)', soundOff: '音なし (M)',
   title: 'こひとさがし', subtitle: 'あつぎの、雨のない夏。',
   start: 'はじめる', restart: 'はじめから', continue: 'つづける',
   confirmRestart: '今までの記録を消して、はじめから遊びますか？',

@@ -2,7 +2,7 @@ import { TEXT } from '../data/text';
 import type { UI } from '../render/ui';
 import { P } from '../render/palette';
 
-export function drawTitle(ui: UI, hasSave: boolean): void {
+export function drawTitle(ui: UI, hasSave: boolean, muted = false): void {
   const c = ui.ctx;
   c.fillStyle = P.sand; c.fillRect(0, 0, 360, 640);
   for (let i = 0; i < 8; i++) { c.fillStyle = i % 2 ? P.wallLight : P.concrete; c.fillRect(i * 52 - 20, 220 - i % 3 * 14, 46, 155); }
@@ -18,4 +18,5 @@ export function drawTitle(ui: UI, hasSave: boolean): void {
   ui.button(hasSave ? TEXT.continue : TEXT.start, hasSave ? 'continue' : 'start', 70, 496, 220, 48, true);
   if (hasSave) ui.button(TEXT.restart, 'start', 70, 555, 220);
   ui.text(TEXT.saved, 180, 617, 13, P.muted, 'center');
+  ui.button(muted ? TEXT.soundOff : TEXT.soundOn, 'toggle-sound', 244, 18, 100, 32);
 }
