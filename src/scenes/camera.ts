@@ -4,7 +4,7 @@ import type { KohitoRuntime } from '../game/kohito';
 import type { ShotInput, ShotResult } from '../game/photo';
 import { clamp, scoreShot, shotStage } from '../game/photo';
 import { CAMERA_ZOOM, cameraCenter, distance } from '../game/world';
-import { HINT_IDS } from '../data/kohito';
+import { HINT_IDS, SUBJECT_BOUNDS } from '../data/kohito';
 import { writeSave } from '../game/save';
 import { drawWorld, drawStick } from './field';
 import { drawKohito } from '../render/kohitoArt';
@@ -16,7 +16,7 @@ export const FINDER = { x: 72, y: 176, w: 216, h: 288 };
 type Rect = ShotInput['subject'];
 export function subjectRect(game: GameState, k: KohitoRuntime): Rect {
   const bob = Math.sin(game.elapsed * 2.5) * 1.5;
-  const bounds = k.id === 'tarejiri' ? { left: -15, top: -37, w: 35, h: 62 } : { left: -20, top: -30, w: 44, h: 46 };
+  const bounds = SUBJECT_BOUNDS[k.id];
   const center = cameraCenter(game.player, k);
   return { x: 180 + (k.x - center.x + bounds.left) * CAMERA_ZOOM - game.pan, y: 320 + (k.y - center.y + bounds.top + bob) * CAMERA_ZOOM, w: bounds.w * CAMERA_ZOOM, h: bounds.h * CAMERA_ZOOM };
 }

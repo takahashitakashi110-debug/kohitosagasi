@@ -4,6 +4,7 @@ import { P } from '../src/render/palette';
 import { UI } from '../src/render/ui';
 import { KOHITO_IDS } from '../src/game/state';
 import type { KohitoId } from '../src/game/state';
+import { SUBJECT_BOUNDS } from '../src/data/kohito';
 
 type Matrix = [number, number, number, number, number, number];
 interface Bounds { left: number; top: number; right: number; bottom: number }
@@ -189,7 +190,8 @@ describe('recording context', () => {
 describe('art bounds and drawing budget', () => {
   const variants = states.flatMap(state => [true, false].map(nativeRoundRect => ({ ...state, nativeRoundRect })));
   it.each(variants)('$id special=$special hidden=$hidden nativeRoundRect=$nativeRoundRect stays within the scoring rectangle at all 61 times', ({ id, special, hidden, nativeRoundRect }) => {
-    const limit = id !== 'tarejiri' ? { left: -20, top: -30, right: 24, bottom: 16 }
+    const subject = SUBJECT_BOUNDS[id];
+    const limit = id !== 'tarejiri' ? { left: subject.left, top: subject.top, right: subject.left + subject.w, bottom: subject.top + subject.h }
       : hidden ? { left: -6, top: -7, right: 20, bottom: 20 }
         : { left: -15, top: -37, right: 20, bottom: 25 };
     for (let tick = 0; tick <= 60; tick++) {
@@ -200,6 +202,35 @@ describe('art bounds and drawing budget', () => {
       expect(b.right, message).toBeLessThanOrEqual(limit.right + 1e-9);
       expect(b.bottom, message).toBeLessThanOrEqual(limit.bottom + 1e-9);
       expect(c.drawCalls, message).toBeLessThanOrEqual(30);
+    }
+  });
+});
+
+describe('subject bounds fit the art', () => {
+  it.each(KOHITO_IDS)('%s stays inside the previous rectangle; tarejiri is unchanged', id => {
+    const subject = SUBJECT_BOUNDS[id];
+    if (id === 'tarejiri') {
+      expect(subject).toEqual({ left: -15, top: -37, w: 35, h: 62 });
+    } else {
+      expect(subject.left).toBeGreaterThanOrEqual(-20);
+      expect(subject.top).toBeGreaterThanOrEqual(-30);
+      expect(subject.left + subject.w).toBeLessThanOrEqual(24);
+      expect(subject.top + subject.h).toBeLessThanOrEqual(16);
+    }
+  });
+  it.each(otherIds)('%s leaves no more than 3 units on any side of all animation poses combined', id => {
+    const drawings = [false, true].flatMap(special => Array.from({ length: 61 }, (_, tick) =>
+      localBounds(draw(id, tick / 10, special))));
+    const subject = SUBJECT_BOUNDS[id];
+    const gaps = {
+      left: Math.min(...drawings.map(b => b.left)) - subject.left,
+      top: Math.min(...drawings.map(b => b.top)) - subject.top,
+      right: subject.left + subject.w - Math.max(...drawings.map(b => b.right)),
+      bottom: subject.top + subject.h - Math.max(...drawings.map(b => b.bottom)),
+    };
+    for (const [side, gap] of Object.entries(gaps)) {
+      expect(gap, `${id} ${side}`).toBeGreaterThanOrEqual(-1e-9);
+      expect(gap, `${id} ${side}`).toBeLessThanOrEqual(3 + 1e-9);
     }
   });
 });
