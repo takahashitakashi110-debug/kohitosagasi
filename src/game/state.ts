@@ -23,13 +23,15 @@ export interface SaveData {
   location: 'home' | SpotId;
   album: Record<KohitoId, AlbumEntry | undefined>;
   hints: KohitoId[];
+  /** 今の時間区分で逃げたこひと。時間が進むと空になる。リロードで復活させないために保存する。 */
+  escaped: KohitoId[];
   cleared: boolean;
   clearedDay: number | null;
 }
 export function freshSave(): SaveData {
   return { version: 1, day: 1, time: 'morning', location: 'home',
     album: { urasumi: undefined, haritsuki: undefined, dobunozoki: undefined, noboriyurashi: undefined, kagebousi: undefined, tarejiri: undefined },
-    hints: [], cleared: false, clearedDay: null };
+    hints: [], escaped: [], cleared: false, clearedDay: null };
 }
 export function advanceLocation(save: SaveData, destination: SpotId | 'home'): 'field' | 'dayend' {
   if (destination === 'home' || (save.location !== 'home' && save.time === 'night' && destination !== save.location)) {
@@ -40,7 +42,7 @@ export function advanceLocation(save: SaveData, destination: SpotId | 'home'): '
   save.location = destination;
   return 'field';
 }
-export function nextDay(save: SaveData): void { save.day++; save.time = 'morning'; save.location = 'home'; }
+export function nextDay(save: SaveData): void { save.day++; save.time = 'morning'; save.location = 'home'; save.escaped = []; }
 
 export interface PhotoFeedback { id: KohitoId; shot: ShotResult; hintGained: boolean; hidden: boolean }
 export interface GameState {

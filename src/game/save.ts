@@ -21,6 +21,7 @@ function validateSave(raw: string | null): SaveData | null {
     if (!object(value) || value.version !== 1 || !integer(value.day, 1) || !member(value.time, TIMES) ||
       !member(value.location, ['home', ...SPOT_IDS]) || !object(value.album) || !Array.isArray(value.hints) ||
       !value.hints.every((id: unknown) => member(id, KOHITO_IDS) && id !== 'tarejiri') || new Set(value.hints).size !== value.hints.length ||
+      !(value.escaped === undefined || (Array.isArray(value.escaped) && value.escaped.every((id: unknown) => member(id, KOHITO_IDS)) && new Set(value.escaped).size === value.escaped.length)) ||
       typeof value.cleared !== 'boolean' || !(value.clearedDay === null || integer(value.clearedDay, 1))) return null;
     if (value.cleared !== (value.clearedDay !== null) || (typeof value.clearedDay === 'number' && value.clearedDay > value.day)) return null;
     const album = freshSave().album;
@@ -29,7 +30,8 @@ function validateSave(raw: string | null): SaveData | null {
       album[id] = entry;
     }
     return { version: 1, day: value.day, time: value.time, location: value.location, album,
-      hints: value.hints.filter(id => member(id, KOHITO_IDS)), cleared: value.cleared, clearedDay: value.clearedDay };
+      hints: value.hints.filter(id => member(id, KOHITO_IDS)),
+      escaped: Array.isArray(value.escaped) ? value.escaped.filter(id => member(id, KOHITO_IDS)) : [], cleared: value.cleared, clearedDay: value.clearedDay };
   } catch { return null; }
 }
 export function parseSave(raw: string | null): SaveData { return validateSave(raw) ?? freshSave(); }

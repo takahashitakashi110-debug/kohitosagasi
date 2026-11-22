@@ -4,7 +4,7 @@ import { Input } from './engine/input';
 import { TEXT } from './data/text';
 import { SPOTS } from './data/spots';
 import { createGame, freshSave, nextDay, SPOT_IDS } from './game/state';
-import { enterField, travel } from './game/flow';
+import { clearEscaped, enterField, restoreEscaped, travel } from './game/flow';
 import { loadSave, hasSave, writeSave, deleteSave } from './game/save';
 import { clamp } from './game/photo';
 import { movePlayer } from './game/world';
@@ -52,7 +52,7 @@ function command(action: string): void {
       if (game.hasSave && !window.confirm(TEXT.confirmRestart)) return;
       deleteSave(); Object.assign(game, createGame(freshSave())); game.scene = 'map'; input.suppressCamera();
     } else if (action === 'continue' || action === 'primary') {
-      game.save = loadSave(); game.escaped.clear(); game.visitKey = '';
+      game.save = loadSave(); restoreEscaped(game); game.visitKey = '';
       game.scene = game.save.cleared ? 'ending' : game.save.location === 'home' ? game.save.time === 'morning' ? 'map' : 'dayend' : 'field';
       if (game.scene === 'field') enterField(game);
     }
@@ -76,7 +76,7 @@ function command(action: string): void {
     if (action === 'previous') game.albumPage = (game.albumPage + pages - 1) % pages;
   } else if (game.scene === 'ending' && action === 'primary' && game.endingTime >= 9) openAlbum();
   else if (game.scene === 'dayend' && (action === 'tomorrow' || action === 'primary')) {
-    nextDay(game.save); game.escaped.clear(); game.visitKey = ''; game.scene = 'map'; writeSave(game.save);
+    nextDay(game.save); clearEscaped(game); game.visitKey = ''; game.scene = 'map'; writeSave(game.save);
   }
 }
 startLoop(dt => {

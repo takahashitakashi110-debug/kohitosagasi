@@ -3,7 +3,8 @@ import type { Input } from '../engine/input';
 import { tickKohito } from '../game/kohito';
 import type { KohitoRuntime } from '../game/kohito';
 import type { GameState } from '../game/state';
-import { distance, fieldCamera } from '../game/world';
+import { CAMERA_ZOOM, cameraCenter, distance, fieldCamera } from '../game/world';
+import { markEscaped } from '../game/flow';
 import { drawKohito, drawPlayer } from '../render/kohitoArt';
 import { P } from '../render/palette';
 import { drawObjects, drawTiles } from '../render/tiles';
@@ -15,7 +16,7 @@ export function nearestKohito(game: GameState): KohitoRuntime | undefined {
 export function updateFieldKohitos(game: GameState, dt: number, cameraHeld: boolean): void {
   for (const k of game.kohitos) {
     tickKohito(k, { distance: distance(k, game.player), moving: game.moving, sneaking: game.sneaking, cameraHeld }, dt);
-    if (k.fleeing > 0 || k.escaped) game.escaped.add(k.id);
+    if ((k.fleeing > 0 || k.escaped) && !game.escaped.has(k.id)) markEscaped(game, k.id);
   }
 }
 export function drawWorld(ui: UI, game: GameState, cameraMode = false): void {
@@ -23,7 +24,10 @@ export function drawWorld(ui: UI, game: GameState, cameraMode = false): void {
   const spot = game.save.location;
   if (spot === 'home') return;
   c.save();
-  if (cameraMode) { c.translate(180 - game.pan, 320); c.scale(1.6, 1.6); c.translate(-game.player.x, -game.player.y); }
+  if (cameraMode) {
+    const center = cameraCenter(game.player, game.kohitos.find(k => k.id === game.cameraTarget));
+    c.translate(180 - game.pan, 320); c.scale(CAMERA_ZOOM, CAMERA_ZOOM); c.translate(-center.x, -center.y);
+  }
   else { const camera = fieldCamera(game.player); c.translate(-camera.x, -camera.y); }
   drawTiles(c, spot);
   drawObjects(c, spot, game.save.time, game.elapsed);

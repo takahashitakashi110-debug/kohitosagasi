@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createGame, freshSave, nextDay } from '../src/game/state';
 import type { GameState, KohitoId, SpotId } from '../src/game/state';
-import { enterField, travel } from '../src/game/flow';
+import { clearEscaped, enterField, restoreEscaped, travel } from '../src/game/flow';
 import { nearestKohito, updateFieldKohitos } from '../src/scenes/field';
 import { takePhoto } from '../src/scenes/camera';
 import { remainingCandidates } from '../src/game/deduction';
-import { parseSave } from '../src/game/save';
+import { loadSave, parseSave } from '../src/game/save';
 import { KOHITO } from '../src/data/kohito';
 
 /**
@@ -168,6 +168,34 @@ describe('3日間のクリアまで通しで遊ぶ', () => {
     expect(remainingCandidates(game.save.hints)).toHaveLength(16);
   });
 
+  it('逃げた記録は保存され、リロードしても同じ時間区分には戻ってこない', () => {
+    const game = newGame();
+    travel(game, 'kawazoi');
+    standNear(game, 'dobunozoki', 5);
+    game.moving = true;
+    game.sneaking = false;
+    for (let i = 0; i < 60 * 6; i++) updateFieldKohitos(game, DT, false);
+    expect(game.escaped.has('dobunozoki')).toBe(true);
+    expect(game.save.escaped, '逃げた瞬間に保存データへ載る').toEqual(['dobunozoki']);
+
+    // リロード相当: 保存データから新しいゲームを作り、「つづける」と同じ手順で戻る。
+    const reloaded = createGame(loadSave(), true);
+    restoreEscaped(reloaded);
+    reloaded.visitKey = '';
+    enterField(reloaded);
+    expect(reloaded.save.time).toBe('morning');
+    expect(reloaded.kohitos.map(k => k.id), 'リロードしても同じ時間区分には出ない').not.toContain('dobunozoki');
+
+    // 翌日になれば保存データからも消えて、また出る。
+    travel(reloaded, 'home');
+    nextDay(reloaded.save);
+    clearEscaped(reloaded);
+    reloaded.visitKey = '';
+    travel(reloaded, 'kawazoi');
+    expect(reloaded.save.escaped).toEqual([]);
+    expect(reloaded.kohitos.map(k => k.id)).toContain('dobunozoki');
+  });
+
   it('気づかれると逃げ、その時間区分では戻ってこない', () => {
     const game = newGame();
     travel(game, 'kawazoi');
@@ -192,6 +220,7 @@ describe('3日間のクリアまで通しで遊ぶ', () => {
     travel(game, 'danchi');
     expect(game.save.time).toBe('noon');
     expect(game.escaped.size, '時間が進むと逃げた記録はリセットされる').toBe(0);
+    expect(game.save.escaped, '保存データの逃走記録も消える').toEqual([]);
 
     // 翌日の朝には戻っている。
     endDay(game);

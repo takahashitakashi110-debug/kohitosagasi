@@ -3,7 +3,7 @@ import { SPAWN } from '../data/spots';
 import { remainingCandidates } from './deduction';
 import { createKohito } from './kohito';
 import { advanceLocation } from './state';
-import type { GameState, SpotId } from './state';
+import type { GameState, KohitoId, SpotId } from './state';
 import { writeSave } from './save';
 
 /**
@@ -32,9 +32,25 @@ export function enterField(game: GameState): void {
 export function travel(game: GameState, destination: SpotId | 'home'): void {
   const previousTime = game.save.time;
   const result = advanceLocation(game.save, destination);
-  if (previousTime !== game.save.time) game.escaped.clear();
+  if (previousTime !== game.save.time) clearEscaped(game);
   game.scene = result;
   if (result === 'field') enterField(game);
   writeSave(game.save);
   game.hasSave = true;
+}
+
+/** 逃げた記録を付けて保存する（リロードしても同じ時間区分には戻らない）。 */
+export function markEscaped(game: GameState, id: KohitoId): void {
+  game.escaped.add(id);
+  if (!game.save.escaped.includes(id)) game.save.escaped.push(id);
+  writeSave(game.save);
+}
+/** 時間が進んだときに逃げた記録を捨てる。 */
+export function clearEscaped(game: GameState): void {
+  game.escaped.clear();
+  game.save.escaped = [];
+}
+/** 保存データから逃げた記録を復元する（タイトルの「つづける」）。 */
+export function restoreEscaped(game: GameState): void {
+  game.escaped = new Set(game.save.escaped);
 }

@@ -14,12 +14,18 @@ describe('save', () => {
     writeSave(save, storage); expect(loadSave(storage)).toEqual(save); expect(hasSave(storage)).toBe(true);
     deleteSave(storage); expect(loadSave(storage)).toEqual(freshSave());
   });
-  it.each([{ day: -1 }, { day: 1.5 }, { time: 'dawn' }, { hints: ['urasumi', 'urasumi'] }, { album: { urasumi: { stage: 9 } } }, { cleared: true }, { clearedDay: 3 }])('rejects malformed nested or scalar data: %s', patch => expect(parseSave(JSON.stringify({ ...freshSave(), ...patch }))).toEqual(freshSave()));
+  it.each([{ day: -1 }, { day: 1.5 }, { time: 'dawn' }, { hints: ['urasumi', 'urasumi'] }, { escaped: ['unknown'] }, { escaped: ['urasumi', 'urasumi'] }, { escaped: 'urasumi' }, { album: { urasumi: { stage: 9 } } }, { cleared: true }, { clearedDay: 3 }])('rejects malformed nested or scalar data: %s', patch => expect(parseSave(JSON.stringify({ ...freshSave(), ...patch }))).toEqual(freshSave()));
   it('throwing storage keeps progress in memory', () => {
     const broken: SaveStorage = { getItem: () => { throw new Error(); }, setItem: () => { throw new Error(); }, removeItem: () => { throw new Error(); } };
     const save = freshSave(); save.day = 5;
     expect(() => writeSave(save, broken)).not.toThrow(); expect(loadSave(broken)).toEqual(save);
     expect(() => deleteSave(broken)).not.toThrow(); expect(loadSave(broken)).toEqual(freshSave());
+  });
+  it('escaped round trips, and an older save without escaped loads as empty', () => {
+    const save = freshSave(); save.location = 'kawazoi'; save.escaped = ['dobunozoki', 'tarejiri'];
+    writeSave(save, storage); expect(loadSave(storage)).toEqual(save);
+    const old: Record<string, unknown> = { ...freshSave(), day: 2 }; delete old.escaped;
+    expect(parseSave(JSON.stringify(old))).toEqual({ ...freshSave(), day: 2 });
   });
   it('missing storage works in memory', () => { const save = freshSave(); save.day = 8; writeSave(save, null); expect(loadSave(null)).toEqual(save); });
   it('readable but unwritable storage uses current in-memory progress', () => {
