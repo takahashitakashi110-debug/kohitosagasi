@@ -15,7 +15,7 @@ MVP は**遊べる状態まで完成**しています。
 
 - 設計の未決事項6件は全部決定済み（→ §4）
 - 実装は Codex CLI、検査とレビューは Claude という分担で進めた
-- `typecheck` / `test`(418件) / `build` すべて通過
+- `typecheck` / `test`(424件) / `build` すべて通過
 - 3日間でクリアするまでの通しプレイを自動テストで毎回検証している
 
 **残っているのは実機での操作確認です。**（§7-A の仮絵と §7-B の不具合2件は対応済み）
@@ -112,6 +112,7 @@ tests/props.test.ts       装飾の配置7条件・再現性・描画範囲・�
 tests/spot-layout.test.ts 地形の保護範囲・到達性・通行率・スポット間の差・装飾の透明度
 tests/sound.test.ts       合成音の長さ・音量・音型、距離と状態の変化、ミュート・設定保存不可
 tests/button-layout.test.ts タイトル・散策画面の全ボタン間の非重複（セーブ・カメラ・ミュートの有無）
+tests/e2e-hook.test.ts    通常URLでの非公開、読み取り関数のみの公開、ボタンの写しの独立性
 ```
 
 `playthrough.test.ts` が一番効きます。
@@ -374,6 +375,70 @@ PR #16のレビューで、散策画面のミュートがアルバムの下端�
 Chromiumの390×844／360×640／900×800で同じ状態の組み合わせと全ボタンの非重複を確認し、
 指摘の座標(292,65)のタップでミュートを変えずにアルバムが開くこと、
 移動後のミュートボタンとMキーが動くことを確認しました。コンソール／JavaScriptエラーは0件です。
+
+### D-4. ボタン操作を実ブラウザでCI検証（Issue #19）→ **対応済み**
+
+PR #16のマージを確認し、[依頼書G](./REQUEST_G_E2E_BUTTONS.md) v1.0への着手を再開しました。
+指定の既存 `codex/e2e-buttons` / PR #18を専用worktreeへ取り出し、本流 `9dfc9ba` をmergeしています。
+変更前の型チェック・418件のテスト・ビルドは成功しました。
+読み取り専用フック、スマホ幅でのタップ操作、CIの画像・トレース保存を追加しました。
+
+実装は `src/main.ts` の `?e2e=1` 専用フック（`scene()` とボタンの写しを返す `buttons()` のみ）、
+`tests/support/buttons.ts` の共通の重複判定、`e2e/buttons.spec.ts` の実操作テストです。
+フックは固定された読み取り関数だけを公開し、ゲーム本体やボタンへの参照を渡しません。
+フックを公開しない通常URLと、返したボタンの変更がゲームへ及ばないことを新規6件で検証します。
+既存の配置テスト8件は重複判定の切り出しだけで、期待値は不変です。
+
+実操作テストは390×844／360×640、タッチ・モバイル・DPR 2のChromiumで、
+ビルドした成果物を `vite preview` から開きます。初期保存を消し、タイトル→地図→川沿いまで
+全て実際のボタンの矩形から座標を計算してタップします。アルバム下端から2px内側の操作、
+ミュートだけが切り替わること（場面とセーブは不変）、再タップで戻ることを2テスト×2画面幅で検査します。
+
+動かし方:
+```sh
+npm ci
+npx playwright install --with-deps chromium
+npm run typecheck
+npm test
+npm run e2e
+```
+`npm run e2e` がビルドとpreview起動・終了も行います。既存サーバーは使い回しません。
+ローカルでブラウザ配布先に接続できない場合は、インストール済みのChromiumでも検証できます:
+```sh
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run e2e
+```
+この作業環境では配布先から403が返ったため、この方法を使用しています。CIはPlaywright同梱版を使います。
+`@playwright/test` は1.65.1に固定し、実行時のdependenciesは空のままです。
+
+既存のCIのtestジョブは変更せず、e2eジョブを追加しました。pushを全ブランチに広げ、
+pull_requestとともに実行します。成功時は確認画像、失敗時は画像とtrace.zipを
+`e2e-evidence-<run_id>-<attempt>` として14日間保存します。
+`e2e/summarize-ci.mjs` が合否・画像数・トレース数・保存先リンクをジョブの要約に出し、
+成功時に画像が無い／成功トレースが残る場合、失敗時に画像・トレースが無い場合はエラーにします。
+出力先は `test-results/`（git管理外）です。
+
+2026-11-22に公式のlatestリリースとタグのコミットを確認し、新規e2eジョブのActionsをSHAで固定しました。
+既存testジョブのActions指定は依頼どおりそのままです。
+
+| Action | 確認したリリース | 固定SHA |
+| --- | --- | --- |
+| checkout | [v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1) | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| setup-node | [v7.1.0](https://github.com/actions/setup-node/releases/tag/v7.1.0) | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
+| upload-artifact | [v7.0.2](https://github.com/actions/upload-artifact/releases/tag/v7.0.2) | `cf430e030ddbb5b0abf93d22962f4752f3646cd9` |
+
+既存418件にフックの6件を加えた単体424件、型チェック、ビルド、実ブラウザ4件が成功しました。
+通常の実装 `702cb64` は[CI #38](https://github.com/takahashitakashi110-debug/kohitosagasi/actions/runs/45034746363)で
+test・e2eの両ジョブが成功し、[画像6枚・成功トレース0個の成果物](https://github.com/takahashitakashi110-debug/kohitosagasi/actions/runs/45034746363/artifacts/14759091215)を保存しました。
+
+依頼G §7の例外に従い、一時コミット `6c734f2` で旧位置を再現しました。
+ローカルで単体4件と実ブラウザ4件が `album overlaps toggle-sound` で失敗することを確認してからpushし、
+[意図した失敗のCI #40](https://github.com/takahashitakashi110-debug/kohitosagasi/actions/runs/45034871897)でも
+同じ不具合を検出しました。e2eジョブの保存・要約ステップは成功し、
+[失敗画像4枚・trace.zip 4個の成果物](https://github.com/takahashitakashi110-debug/kohitosagasi/actions/runs/45034871897/artifacts/14759381455)が
+生成されたことをCIログ・要約・アーティファクトの取得で確認しました。保存期間は14日です。
+一時変更は履歴を書き換えず追加コミットで打ち消し、正しい配置へ戻しています。
+最終的な画面の位置・見た目・ゲームロジック・セーブは本流と同一です。
+最終コミットのCIと成果物のリンクはPR #18の完了報告を参照してください。未達・妥協はありません。
 
 ### E. そのあと
 

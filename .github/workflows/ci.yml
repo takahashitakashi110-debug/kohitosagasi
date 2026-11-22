@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [claude/confident-gauss-tbl22i]
   pull_request:
 
 jobs:
@@ -18,3 +17,34 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Test mobile button taps
+        id: browser
+        run: npm run e2e
+      - name: Save screenshots and failure traces
+        id: evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: error
+      - name: Summarize browser results
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.browser.outcome }}
+          ARTIFACT_NAME: e2e-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          ARTIFACT_URL: ${{ steps.evidence.outputs.artifact-url }}
+        run: node e2e/summarize-ci.mjs
