@@ -23,6 +23,7 @@ class RecordingContext {
   private path: Bounds | undefined;
   private ellipses: Ellipse[] = [];
   readonly painted: Bounds[] = [];
+  readonly colored: { color: string; stroke: boolean; bounds: Bounds }[] = [];
   readonly whiteEllipses: Ellipse[] = [];
   readonly translations: { x: number; y: number }[] = [];
   drawCalls = 0;
@@ -111,6 +112,7 @@ class RecordingContext {
     const py = stroke ? Math.hypot(b, d) * this.lineWidth / 2 : 0;
     this.painted.push({ left: bounds.left - px, top: bounds.top - py,
       right: bounds.right + px, bottom: bounds.bottom + py });
+    this.colored.push({ color, stroke, bounds: this.painted[this.painted.length - 1] });
   }
   fill(): void {
     this.record(this.path, this.fillStyle, false);
@@ -257,5 +259,65 @@ describe('distinct silhouettes', () => {
         expect(b.top - offset.y).toBeGreaterThanOrEqual(-7 - 1e-9);
       }
     }
+  });
+});
+
+describe('noboriyurashi hugging the flag', () => {
+  it('keeps the wrapped red cloth at x <= 4 throughout the special moment', () => {
+    for (let tick = 0; tick <= 60; tick++) {
+      const cloth = draw('noboriyurashi', tick / 10, true).colored.filter(paint => paint.color === P.red);
+      expect(cloth.length).toBeGreaterThan(0);
+      expect(Math.max(...cloth.map(paint => paint.bounds.right)), `elapsed=${tick / 10}`).toBeLessThanOrEqual(4);
+    }
+  });
+  it('still lets the ordinary red cloth extend to x >= 15 at all 61 times', () => {
+    for (let tick = 0; tick <= 60; tick++) {
+      const cloth = draw('noboriyurashi', tick / 10).colored.filter(paint => paint.color === P.red);
+      expect(cloth.length).toBeGreaterThan(0);
+      expect(Math.max(...cloth.map(paint => paint.bounds.right)), `elapsed=${tick / 10}`).toBeGreaterThanOrEqual(15);
+    }
+  });
+  it('draws two drops and three closed eyes during the special moment', () => {
+    for (let tick = 0; tick <= 60; tick++) {
+      const paints = draw('noboriyurashi', tick / 10, true).colored;
+      expect(paints.filter(paint => paint.color === P.water && !paint.stroke)).toHaveLength(2);
+      expect(paints.filter(paint => paint.color === P.ink && paint.stroke)).toHaveLength(3);
+      expect(paints.filter(paint => paint.color === P.ink && !paint.stroke)).toHaveLength(0);
+    }
+  });
+  it('preserves the complete ordinary command and style trace at elapsed=0', () => {
+    // 変更前の9517219を実ブラウザで記録した固定値。現在の実装から生成し直さない。
+    const originalCommands: unknown[][] = [
+      ['save'], ['translate', 0, 0], ['set', 'fillStyle', '#2d3d4440'], ['beginPath'],
+      ['ellipse', 0, 12, 15, 4, 0, 0, 6.283185307179586], ['fill'],
+      ['set', 'globalAlpha', 0.48], ['set', 'fillStyle', '#ac6157'], ['beginPath'],
+      ['moveTo', -5, -23], ['quadraticCurveTo', 8, -24, 19, -21],
+      ['lineTo', 20.682941969615793, -12], ['lineTo', 20.818594853651362, -3],
+      ['lineTo', 19.282240016119733, 6], ['quadraticCurveTo', 7, 3, -5, 8], ['closePath'], ['fill'],
+      ['set', 'globalAlpha', 0.9], ['set', 'fillStyle', '#babdaf'], ['beginPath'],
+      ['moveTo', -12, -25], ['lineTo', -5, -25], ['lineTo', -5, 15], ['lineTo', -12, 15], ['closePath'], ['fill'],
+      ['set', 'fillStyle', '#dce3bd'], ['beginPath'], ['ellipse', -8.5, -25, 3.5, 4, 0, 0, 6.283185307179586], ['fill'],
+      ['set', 'fillStyle', '#303d39'], ['beginPath'], ['ellipse', -8.5, -26, 0.9, 0.9, 0, 0, 6.283185307179586], ['fill'],
+      ['set', 'fillStyle', '#303d39'], ['beginPath'], ['ellipse', -8.5, -23, 0.9, 0.9, 0, 0, 6.283185307179586], ['fill'],
+      ['set', 'fillStyle', '#303d39'], ['beginPath'], ['ellipse', -8.5, -20, 0.9, 0.9, 0, 0, 6.283185307179586], ['fill'],
+      ['set', 'fillStyle', '#94b8b1'], ['beginPath'], ['ellipse', 18, 9, 1, 1.5, 0, 0, 6.283185307179586], ['fill'], ['restore'],
+    ];
+    const commands: unknown[][] = [];
+    const c = new Proxy(new RecordingContext() as unknown as CanvasRenderingContext2D, {
+      get(target, key) {
+        const value = Reflect.get(target, key, target);
+        if (typeof value !== 'function') return value;
+        return (...args: unknown[]) => {
+          commands.push([String(key), ...args]);
+          return Reflect.apply(value, target, args);
+        };
+      },
+      set(target, key, value: unknown) {
+        commands.push(['set', String(key), value]);
+        return Reflect.set(target, key, value, target);
+      },
+    });
+    drawKohito(c, 'noboriyurashi', 0, 0, 0, false);
+    expect(commands).toEqual(originalCommands);
   });
 });

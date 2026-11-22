@@ -70,6 +70,28 @@ function drawDobunozoki(c: CanvasRenderingContext2D, _elapsed: number, special: 
 }
 
 function drawNoboriyurashi(c: CanvasRenderingContext2D, elapsed: number, special: boolean): void {
+  if (special) {
+    c.globalAlpha = 0.9; c.fillStyle = P.skin; c.beginPath();
+    c.moveTo(-12, -25); c.lineTo(-5, -25); c.lineTo(-5, 15); c.lineTo(-12, 15); c.closePath(); c.fill();
+    // 布を胴の手前へ巻き、右へたなびく通常時と輪郭でも区別する。
+    c.globalAlpha = 0.6; c.fillStyle = P.red; c.beginPath(); c.moveTo(-13, -22);
+    c.quadraticCurveTo(-6, -24, 1, -20); c.quadraticCurveTo(3 + Math.sin(elapsed * 2) * 0.3, -10, 0, 5);
+    c.quadraticCurveTo(-6, 9, -13, 6); c.quadraticCurveTo(-15, -6, -13, -22); c.closePath(); c.fill();
+    c.globalAlpha = 0.9; ellipse(c, -8.5, -25, 3.5, 4, P.pale);
+    c.strokeStyle = P.skin; c.lineWidth = 2.5; c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(-12, -14); c.quadraticCurveTo(-16, -10, -4, -8);
+    c.moveTo(-4, -13); c.quadraticCurveTo(4, -7, -10, -5); c.stroke();
+    c.strokeStyle = P.ink; c.lineWidth = 0.9;
+    for (let i = 0; i < 3; i++) {
+      const y = -26 + i * 3;
+      c.beginPath(); c.moveTo(-10, y - 0.3); c.quadraticCurveTo(-8.5, y + 1.3, -7, y - 0.3); c.stroke();
+    }
+    for (let i = 0; i < 2; i++) {
+      const fall = ((elapsed + i * 0.9) % 1.8) / 1.8;
+      ellipse(c, -10 + i * 7, 10 + fall * 3, 0.9, 1.3, P.water);
+    }
+    return;
+  }
   const lean = special ? Math.sin(elapsed * 3 + 0.5) * 4 : 0;
   const wave = (position: number): number => Math.sin(elapsed * 3 + position) * (special ? 4 : 2);
   c.globalAlpha = 0.48; c.fillStyle = P.red; c.beginPath();
