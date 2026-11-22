@@ -62,7 +62,7 @@ export function drawStick(ui: UI, input: Input): void {
   c.beginPath(); c.arc(70, 555, 22, 0, Math.PI * 2); c.stroke();
   c.fillStyle = P.cream; c.beginPath(); c.arc(70 + input.stick.x * 32, 555 + input.stick.y * 32, 13, 0, Math.PI * 2); c.fill();
 }
-export function drawField(ui: UI, game: GameState, input: Input): void {
+export function drawField(ui: UI, game: GameState, input: Input, muted = false): void {
   drawWorld(ui, game);
   const spot = game.save.location;
   ui.panel(10, 10, 340, 80);
@@ -81,4 +81,5 @@ export function drawField(ui: UI, game: GameState, input: Input): void {
   else ui.text(TEXT.look, 180, 422, 14, P.ink, 'center');
   ui.text(TEXT.fieldGuide[0], 180, 627, 13, P.cream, 'center');
   ui.wrap(TEXT.fieldGuide[1], 16, 466, 176, 14);
+  ui.button(muted ? TEXT.soundOff : TEXT.soundOn, 'toggle-sound', 140, 24, 96, 44);
 }

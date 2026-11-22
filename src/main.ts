@@ -17,6 +17,8 @@ import { drawCamera, drawFeedback, takePhoto } from './scenes/camera';
 import { drawAlbum } from './scenes/album';
 import { drawDayend } from './scenes/dayend';
 import { drawEnding } from './scenes/ending';
+import { SoundController } from './audio/controller';
+import { detectSoundEvents, soundSnapshot } from './audio/events';
 
 document.title = TEXT.title;
 document.body.style.background = P.ink;
@@ -26,6 +28,14 @@ canvas.setAttribute('aria-label', `${TEXT.title}. ${TEXT.keyboard}. ${TEXT.keybo
 const ui = new UI(initCanvas(canvas));
 const input = new Input(canvas);
 const game = createGame(loadSave(), hasSave());
+const sound = new SoundController();
+let previousSound = soundSnapshot(game, false);
+let soundState = { stepDistance: 0 };
+window.addEventListener('keydown', event => {
+  sound.unlock();
+  if (event.code === 'KeyM' && !event.repeat) input.commands.push('toggle-sound');
+});
+canvas.addEventListener('pointerdown', () => sound.unlock());
 function leaveField(): void {
   if (game.save.time === 'night') travel(game, 'home'); else { game.scene = 'map'; game.moving = false; }
 }
@@ -37,6 +47,7 @@ function openAlbum(): void {
   game.feedback = null; game.scene = 'album'; game.moving = false;
 }
 function command(action: string): void {
+  if (action === 'toggle-sound') { sound.toggleMute(); return; }
   if (action === 'confirm' && game.scene !== 'field' && game.scene !== 'camera') action = 'primary';
   if (game.feedback) { if (['close', 'cancel', 'primary'].includes(action)) { game.feedback = null; input.suppressCamera(); } return; }
   if (action === 'album') { openAlbum(); return; }
@@ -102,12 +113,16 @@ startLoop(dt => {
     if (!input.cameraHeld) { takePhoto(game); game.hasSave = true; }
   } else if (game.scene === 'ending') game.endingTime += dt;
 }, () => {
+  // 更新処理の早期return（撮影結果の表示中など）も含め、更新後の状態を毎フレーム観察する。
+  const nextSound = soundSnapshot(game, game.scene === 'camera' && input.cameraHeld);
+  const detected = detectSoundEvents(previousSound, nextSound, soundState);
+  sound.play(detected.events); previousSound = nextSound; soundState = detected.state;
   ui.reset();
   ui.ctx.clearRect(0, 0, 360, 640);
   switch (game.scene) {
-    case 'title': drawTitle(ui, game.hasSave); break;
+    case 'title': drawTitle(ui, game.hasSave, sound.muted); break;
     case 'map': drawMap(ui, game.save, game.mapChoice); break;
-    case 'field': drawField(ui, game, input); if (game.feedback) drawFeedback(ui, game); break;
+    case 'field': drawField(ui, game, input, sound.muted); if (game.feedback) drawFeedback(ui, game); break;
     case 'camera': drawCamera(ui, game, input); break;
     case 'album': drawAlbum(ui, game); break;
     case 'dayend': drawDayend(ui, game.save); break;
