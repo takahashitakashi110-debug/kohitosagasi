@@ -15,7 +15,7 @@ MVP は**遊べる状態まで完成**しています。
 
 - 設計の未決事項6件は全部決定済み（→ §4）
 - 実装は Codex CLI、検査とレビューは Claude という分担で進めた
-- `typecheck` / `test`(418件) / `build` すべて通過
+- `typecheck` / `test`(424件) / `build` すべて通過
 - 3日間でクリアするまでの通しプレイを自動テストで毎回検証している
 
 **残っているのは実機での操作確認です。**（§7-A の仮絵と §7-B の不具合2件は対応済み）
@@ -112,6 +112,7 @@ tests/props.test.ts       装飾の配置7条件・再現性・描画範囲・�
 tests/spot-layout.test.ts 地形の保護範囲・到達性・通行率・スポット間の差・装飾の透明度
 tests/sound.test.ts       合成音の長さ・音量・音型、距離と状態の変化、ミュート・設定保存不可
 tests/button-layout.test.ts タイトル・散策画面の全ボタン間の非重複（セーブ・カメラ・ミュートの有無）
+tests/e2e-hook.test.ts    通常URLでの非公開、読み取り関数のみの公開、ボタンの写しの独立性
 ```
 
 `playthrough.test.ts` が一番効きます。
@@ -375,12 +376,12 @@ Chromiumの390×844／360×640／900×800で同じ状態の組み合わせと全
 指摘の座標(292,65)のタップでミュートを変えずにアルバムが開くこと、
 移動後のミュートボタンとMキーが動くことを確認しました。コンソール／JavaScriptエラーは0件です。
 
-### D-4. ボタン操作を実ブラウザでCI検証（Issue #19）→ **対応中**
+### D-4. ボタン操作を実ブラウザでCI検証（Issue #19）→ **対応済み**
 
 PR #16のマージを確認し、[依頼書G](./REQUEST_G_E2E_BUTTONS.md) v1.0への着手を再開しました。
 指定の既存 `codex/e2e-buttons` / PR #18を専用worktreeへ取り出し、本流 `9dfc9ba` をmergeしています。
 変更前の型チェック・418件のテスト・ビルドは成功しました。
-読み取り専用フック、スマホ幅でのタップ操作、CIの画像・トレース保存を追加します。
+読み取り専用フック、スマホ幅でのタップ操作、CIの画像・トレース保存を追加しました。
 
 実装は `src/main.ts` の `?e2e=1` 専用フック（`scene()` とボタンの写しを返す `buttons()` のみ）、
 `tests/support/buttons.ts` の共通の重複判定、`e2e/buttons.spec.ts` の実操作テストです。
@@ -424,6 +425,20 @@ pull_requestとともに実行します。成功時は確認画像、失敗時�
 | checkout | [v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1) | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
 | setup-node | [v7.1.0](https://github.com/actions/setup-node/releases/tag/v7.1.0) | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
 | upload-artifact | [v7.0.2](https://github.com/actions/upload-artifact/releases/tag/v7.0.2) | `cf430e030ddbb5b0abf93d22962f4752f3646cd9` |
+
+既存418件にフックの6件を加えた単体424件、型チェック、ビルド、実ブラウザ4件が成功しました。
+通常の実装 `702cb64` は[CI #38](https://github.com/takahashitakashi110-debug/kohitosagasi/actions/runs/45034746363)で
+test・e2eの両ジョブが成功し、[画像6枚・成功トレース0個の成果物](https://github.com/takahashitakashi110-debug/kohitosagasi/actions/runs/45034746363/artifacts/14759091215)を保存しました。
+
+依頼G §7の例外に従い、一時コミット `6c734f2` で旧位置を再現しました。
+ローカルで単体4件と実ブラウザ4件が `album overlaps toggle-sound` で失敗することを確認してからpushし、
+[意図した失敗のCI #40](https://github.com/takahashitakashi110-debug/kohitosagasi/actions/runs/45034871897)でも
+同じ不具合を検出しました。e2eジョブの保存・要約ステップは成功し、
+[失敗画像4枚・trace.zip 4個の成果物](https://github.com/takahashitakashi110-debug/kohitosagasi/actions/runs/45034871897/artifacts/14759381455)が
+生成されたことをCIログ・要約・アーティファクトの取得で確認しました。保存期間は14日です。
+一時変更は履歴を書き換えず追加コミットで打ち消し、正しい配置へ戻しています。
+最終的な画面の位置・見た目・ゲームロジック・セーブは本流と同一です。
+最終コミットのCIと成果物のリンクはPR #18の完了報告を参照してください。未達・妥協はありません。
 
 ### E. そのあと
 
