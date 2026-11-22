@@ -6,7 +6,7 @@ description: kohitosagasi リポジトリの Issue 実装、PR 提出、レビ�
 # こひとさがしの共同開発手順
 
 対象は `takahashitakashi110-debug/kohitosagasi`。このリポジトリで実装・レビュー対応・作業再開をするときに使う。
-このスキルは `docs/WORKFLOW.md` v0.3 をもとに保存した入口であり、最新ルールの正本はリポジトリの文書とする。
+このスキルは `docs/WORKFLOW.md` v0.4 をもとに保存した入口であり、最新ルールの正本はリポジトリの文書とする。
 
 ## 始める前に
 
@@ -27,7 +27,7 @@ description: kohitosagasi リポジトリの Issue 実装、PR 提出、レビ�
 ## 実装から提出まで
 
 1. Issue に「作業場所」（ブランチと PR 番号）が書かれていれば、**そのブランチと PR を使う**（自分で新しいブランチや PR を作らない。WORKFLOW.md §3-2）。
-   書かれていないときだけ、最新の本流から `codex/<Issue番号>-<短い英語名>` ブランチを作り、ドラフト PR を出して Issue に PR 番号をコメントする。
+   書かれていないときだけ、最新の本流から `codex/<Issue番号>-<短い英語名>` ブランチを作り（作業場所のブランチ名に Issue 番号が無い場合もある）、ドラフト PR を出して Issue に PR 番号をコメントする。
    再開・レビュー修正では依頼に対応する既存ブランチと PR を使い、追加コミットで対応する。
    再開時と push 前に `git fetch origin` と `git merge origin/<本流>` で本流を取り込む（rebase しない）。
 2. 着手したら一度 push する（着手の記録だけの小さな commit でよい）。既存 PR の説明・状態を確認する。
