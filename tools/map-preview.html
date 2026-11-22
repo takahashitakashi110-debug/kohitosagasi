@@ -15,8 +15,9 @@
   label { margin-right: 20px; }
 </style>
 <h1>スポット全体のプレビュー</h1>
-<p>各マップを0.5倍で表示。その場所に出るこひとを、時間帯にかかわらず全員並べています。</p>
+<p>各マップを0.5倍で表示。通常表示では、その場所に出るこひとを時間帯にかかわらず全員並べています。</p>
 <label><input id="bounds" type="checkbox">装飾の枠を表示（赤：障害物に見える物、緑：地面の模様）</label>
+<label><input id="tiles-only" type="checkbox">地形だけを表示</label>
 <label>時間帯 <select id="time"></select></label>
 <main></main>
 <script type="module">
@@ -45,17 +46,20 @@
     return { spot, canvas };
   });
   function render() {
+    const tilesOnly = document.querySelector('#tiles-only').checked;
     for (const { spot, canvas } of views) {
       const c = canvas.getContext('2d'); c.resetTransform(); c.clearRect(0, 0, canvas.width, canvas.height);
       c.scale(devicePixelRatio * 0.5, devicePixelRatio * 0.5);
       drawTiles(c, spot);
-      // drawObjectsは装飾→既存の目印の順に描く。
-      drawObjects(c, spot, time.value, 0);
-      for (const kohito of Object.values(KOHITO).filter(k => k.spot === spot)) {
-        drawKohito(c, kohito.id, kohito.x, kohito.y, 0, false, false);
+      if (!tilesOnly) {
+        // drawObjectsは装飾→既存の目印の順に描く。
+        drawObjects(c, spot, time.value, 0);
+        for (const kohito of Object.values(KOHITO).filter(k => k.spot === spot)) {
+          drawKohito(c, kohito.id, kohito.x, kohito.y, 0, false, false);
+        }
       }
       c.fillStyle = P.time[time.value]; c.fillRect(0, 0, 576, 768);
-      if (document.querySelector('#bounds').checked) {
+      if (!tilesOnly && document.querySelector('#bounds').checked) {
         c.lineWidth = 1.5;
         for (const prop of PROPS[spot]) {
           c.strokeStyle = prop.solid ? P.red : P.green; c.strokeRect(prop.x, prop.y, prop.w, prop.h);
@@ -64,6 +68,7 @@
     }
   }
   document.querySelector('#bounds').onchange = render;
+  document.querySelector('#tiles-only').onchange = render;
   time.onchange = render;
   render();
 </script>
