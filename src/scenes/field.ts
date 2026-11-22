@@ -81,5 +81,5 @@ export function drawField(ui: UI, game: GameState, input: Input, muted = false):
   else ui.text(TEXT.look, 180, 422, 14, P.ink, 'center');
   ui.text(TEXT.fieldGuide[0], 180, 627, 13, P.cream, 'center');
   ui.wrap(TEXT.fieldGuide[1], 16, 466, 176, 14);
-  ui.button(muted ? TEXT.soundOff : TEXT.soundOn, 'toggle-sound', 244, 62, 96, 24);
+  ui.button(muted ? TEXT.soundOff : TEXT.soundOn, 'toggle-sound', 140, 24, 96, 44);
 }
