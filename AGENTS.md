@@ -10,7 +10,7 @@
 
 要点:
 
-- 本流へ直接 push しない。着手したらすぐドラフト PR を出す（`closes #Issue番号`）。
+- 本流へ直接 push しない。Issue に書かれた作業用ブランチと PR を使う（自分で新しい PR を作らない。WORKFLOW.md §3-2）。
 - push 前に `npm run typecheck` / `npm test` / `npm run build` を実行する。
 - テストを弱めて通さない。重要なテストは変える前に了承を取る（WORKFLOW.md §5）。
 - 報告は WORKFLOW.md §6 の形式で PR にコメントする。merge はしない。
