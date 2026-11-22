@@ -1,6 +1,7 @@
 import { SPOTS, TILE_SIZE } from '../data/spots';
 import type { SpotId, TimeSlot } from '../game/state';
 import { P } from './palette';
+import { drawProps } from './props';
 
 export function drawTiles(ctx: CanvasRenderingContext2D, spot: SpotId): void {
   SPOTS[spot].forEach((row, y) => row.forEach((tile, x) => {
@@ -14,6 +15,7 @@ export function drawTiles(ctx: CanvasRenderingContext2D, spot: SpotId): void {
   }));
 }
 export function drawObjects(ctx: CanvasRenderingContext2D, spot: SpotId, time: TimeSlot, elapsed: number): void {
+  drawProps(ctx, spot);
   ctx.fillStyle = P.shadow; ctx.fillRect(261, 265, 61, 39);
   if (spot === 'ekimae') {
     if (time === 'night') { const light = ctx.createRadialGradient(288, 269, 5, 288, 269, 78); light.addColorStop(0, P.nightGlow); light.addColorStop(1, P.transparent); ctx.fillStyle = light; ctx.fillRect(208, 190, 160, 160); }
