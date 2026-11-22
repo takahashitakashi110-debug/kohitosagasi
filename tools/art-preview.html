@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>こひと・仮絵プレビュー</title>
+<link rel="icon" href="data:,">
+<style>
+  body { margin: 24px; background: #f4eddb; color: #303d39; font: 15px sans-serif; }
+  h1 { font-size: 24px; }
+  h2 { font-size: 18px; margin: 28px 0 10px; }
+  .row { display: grid; grid-template-columns: repeat(6, 190px); gap: 8px; }
+  figure { margin: 0; text-align: center; }
+  canvas { display: block; background: #d6c6a4; }
+  figcaption { margin-top: 8px; font-size: 12px; }
+  button { padding: 8px 14px; margin-right: 8px; }
+  .bounds { grid-template-columns: repeat(2, 190px); }
+</style>
+<h1>こひと・仮絵プレビュー</h1>
+<p>静止画で比較します。影絵は内部の目・光沢・模様を消し、輪郭だけを表示します。</p>
+<button id="step">0.1秒進める</button><button id="reset">0秒に戻す</button>
+<output id="time"></output>
+<main></main>
+<script type="module">
+  import { drawKohito } from '/src/render/kohitoArt.ts';
+  import { P } from '/src/render/palette.ts';
+  import { KOHITO_IDS } from '/src/game/state.ts';
+  import { TEXT } from '/src/data/text.ts';
+
+  let elapsed = 0;
+  const views = [];
+  function row(title, scale, special = false, silhouette = false, bounds = false) {
+    const section = document.createElement('section');
+    const heading = document.createElement('h2');
+    heading.textContent = title;
+    const grid = document.createElement('div');
+    grid.className = bounds ? 'row bounds' : 'row';
+    section.append(heading, grid);
+    document.querySelector('main').append(section);
+    for (const [index, id] of (bounds ? ['tarejiri', 'tarejiri'] : KOHITO_IDS).entries()) {
+      const figure = document.createElement('figure');
+      const canvas = document.createElement('canvas');
+      const height = scale === 4 ? 276 : 88;
+      // DPRを考慮しつつ、CSS上の1pxをゲームの1pxに合わせる。
+      canvas.width = Math.round(190 * devicePixelRatio);
+      canvas.height = Math.round(height * devicePixelRatio);
+      canvas.style.width = '190px';
+      canvas.style.height = `${height}px`;
+      const caption = document.createElement('figcaption');
+      const hidden = bounds && index === 0;
+      caption.textContent = TEXT.names[id] + (bounds ? (hidden ? '（尻だけ）' : '（全身）') : '');
+      canvas.setAttribute('aria-label', `${title}・${caption.textContent}`);
+      figure.append(canvas, caption);
+      grid.append(figure);
+      views.push({ canvas, id, scale, special, silhouette, bounds, hidden });
+    }
+  }
+  row('1. 通常・4倍', 4);
+  row('2. 決定的瞬間・4倍', 4, true);
+  row('3. 通常・実寸（1倍）', 1);
+  row('4. 影絵・実寸（1倍）', 1, false, true);
+  row('5. たれじり・描画範囲（4倍）', 4, false, false, true);
+
+  function render() {
+    document.querySelector('#time').textContent = `elapsed = ${elapsed.toFixed(1)} 秒`;
+    for (const { canvas, id, scale, special, silhouette, bounds, hidden } of views) {
+      const c = canvas.getContext('2d');
+      c.resetTransform();
+      c.clearRect(0, 0, canvas.width, canvas.height);
+      c.scale(devicePixelRatio, devicePixelRatio);
+      c.translate(95, scale === 4 ? 172 : 45);
+      c.scale(scale, scale);
+      if (silhouette) {
+        c.save(); c.fillStyle = P.shadow; const shadowColor = c.fillStyle; c.restore();
+        // 影を除外し、各図形を不透明な同色で塗る。合成後の色置換では
+        // 濃淡や目の穴が残るので、描画時のスタイル指定を代理する。
+        const ink = new Proxy(c, {
+          get(target, key) {
+            if (key === 'fill') return (...args) => {
+              if (target.fillStyle !== shadowColor) {
+                target.save(); target.fillStyle = P.ink; target.globalAlpha = 1;
+                target.fill(...args); target.restore();
+              }
+            };
+            if (key === 'stroke') return (...args) => {
+              target.save(); target.strokeStyle = P.ink; target.globalAlpha = 1;
+              target.stroke(...args); target.restore();
+            };
+            const value = Reflect.get(target, key, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+          },
+          set(target, key, value) { return Reflect.set(target, key, value, target); },
+        });
+        drawKohito(ink, id, 0, 0, elapsed, special, hidden);
+      } else drawKohito(c, id, 0, 0, elapsed, special, hidden);
+      if (bounds) {
+        c.translate(0, Math.sin(elapsed * 2.5) * 1.5);
+        c.strokeStyle = P.red; c.lineWidth = 0.3;
+        if (hidden) c.strokeRect(-6, -7, 26, 27);
+        else c.strokeRect(-15, -37, 35, 62);
+      }
+    }
+  }
+  document.querySelector('#step').onclick = () => { elapsed = Math.round((elapsed + 0.1) * 10) / 10; render(); };
+  document.querySelector('#reset').onclick = () => { elapsed = 0; render(); };
+  render();
+</script>
+</html>
