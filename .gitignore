@@ -3,3 +3,5 @@ dist/
 .qa/
 kohitosagasi-mvp.bundle
 DONE.txt
+test-results/
+playwright-report/

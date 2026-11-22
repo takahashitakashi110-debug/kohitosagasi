@@ -5,6 +5,7 @@ import { createKohito } from '../src/game/kohito';
 import { UI } from '../src/render/ui';
 import { drawField } from '../src/scenes/field';
 import { drawTitle } from '../src/scenes/title';
+import { buttonsOverlap } from './support/buttons';
 
 /** 実際のUI.button（既定の高さも含む）を通し、Canvasへの描画だけを省略する。 */
 function makeUI(): UI {
@@ -19,9 +20,7 @@ function expectSeparated(buttons: HitButton[]): void {
   for (let i = 0; i < buttons.length; i++) {
     for (const b of buttons.slice(i + 1)) {
       const a = buttons[i];
-      // Inputの当たり判定は端も含むため、辺が触れる場合も不合格とする。
-      const overlap = a.x <= b.x + b.w && b.x <= a.x + a.w
-        && a.y <= b.y + b.h && b.y <= a.y + a.h;
+      const overlap = buttonsOverlap(a, b);
       expect(overlap, `${a.action} overlaps ${b.action}`).toBe(false);
     }
   }

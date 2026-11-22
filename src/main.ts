@@ -19,6 +19,13 @@ import { drawDayend } from './scenes/dayend';
 import { drawEnding } from './scenes/ending';
 import { SoundController } from './audio/controller';
 import { detectSoundEvents, soundSnapshot } from './audio/events';
+import type { HitButton } from './engine/input';
+
+declare global {
+  interface Window {
+    readonly __kohitoE2E?: Readonly<{ scene: () => string; buttons: () => HitButton[] }>;
+  }
+}
 
 document.title = TEXT.title;
 document.body.style.background = P.ink;
@@ -28,6 +35,16 @@ canvas.setAttribute('aria-label', `${TEXT.title}. ${TEXT.keyboard}. ${TEXT.keybo
 const ui = new UI(initCanvas(canvas));
 const input = new Input(canvas);
 const game = createGame(loadSave(), hasSave());
+// 通常プレイでは公開しない。関数だけを公開し、内部の配列やボタンへの参照も渡さない。
+if (new URLSearchParams(window.location.search).get('e2e') === '1') {
+  Object.defineProperty(window, '__kohitoE2E', {
+    value: Object.freeze({
+      scene: () => game.scene,
+      buttons: () => ui.buttons.map(({ x, y, w, h, action }) => ({ x, y, w, h, action })),
+    }),
+    writable: false, configurable: false,
+  });
+}
 const sound = new SoundController();
 let previousSound = soundSnapshot(game, false);
 let soundState = { stepDistance: 0 };

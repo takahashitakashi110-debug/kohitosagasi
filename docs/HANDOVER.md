@@ -382,6 +382,49 @@ PR #16のマージを確認し、[依頼書G](./REQUEST_G_E2E_BUTTONS.md) v1.0�
 変更前の型チェック・418件のテスト・ビルドは成功しました。
 読み取り専用フック、スマホ幅でのタップ操作、CIの画像・トレース保存を追加します。
 
+実装は `src/main.ts` の `?e2e=1` 専用フック（`scene()` とボタンの写しを返す `buttons()` のみ）、
+`tests/support/buttons.ts` の共通の重複判定、`e2e/buttons.spec.ts` の実操作テストです。
+フックは固定された読み取り関数だけを公開し、ゲーム本体やボタンへの参照を渡しません。
+フックを公開しない通常URLと、返したボタンの変更がゲームへ及ばないことを新規6件で検証します。
+既存の配置テスト8件は重複判定の切り出しだけで、期待値は不変です。
+
+実操作テストは390×844／360×640、タッチ・モバイル・DPR 2のChromiumで、
+ビルドした成果物を `vite preview` から開きます。初期保存を消し、タイトル→地図→川沿いまで
+全て実際のボタンの矩形から座標を計算してタップします。アルバム下端から2px内側の操作、
+ミュートだけが切り替わること（場面とセーブは不変）、再タップで戻ることを2テスト×2画面幅で検査します。
+
+動かし方:
+```sh
+npm ci
+npx playwright install --with-deps chromium
+npm run typecheck
+npm test
+npm run e2e
+```
+`npm run e2e` がビルドとpreview起動・終了も行います。既存サーバーは使い回しません。
+ローカルでブラウザ配布先に接続できない場合は、インストール済みのChromiumでも検証できます:
+```sh
+PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run e2e
+```
+この作業環境では配布先から403が返ったため、この方法を使用しています。CIはPlaywright同梱版を使います。
+`@playwright/test` は1.65.1に固定し、実行時のdependenciesは空のままです。
+
+既存のCIのtestジョブは変更せず、e2eジョブを追加しました。pushを全ブランチに広げ、
+pull_requestとともに実行します。成功時は確認画像、失敗時は画像とtrace.zipを
+`e2e-evidence-<run_id>-<attempt>` として14日間保存します。
+`e2e/summarize-ci.mjs` が合否・画像数・トレース数・保存先リンクをジョブの要約に出し、
+成功時に画像が無い／成功トレースが残る場合、失敗時に画像・トレースが無い場合はエラーにします。
+出力先は `test-results/`（git管理外）です。
+
+2026-11-22に公式のlatestリリースとタグのコミットを確認し、新規e2eジョブのActionsをSHAで固定しました。
+既存testジョブのActions指定は依頼どおりそのままです。
+
+| Action | 確認したリリース | 固定SHA |
+| --- | --- | --- |
+| checkout | [v7.0.1](https://github.com/actions/checkout/releases/tag/v7.0.1) | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| setup-node | [v7.1.0](https://github.com/actions/setup-node/releases/tag/v7.1.0) | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
+| upload-artifact | [v7.0.2](https://github.com/actions/upload-artifact/releases/tag/v7.0.2) | `cf430e030ddbb5b0abf93d22962f4752f3646cd9` |
+
 ### E. そのあと
 
 本番の絵への差し替え、たれじりの出現条件の日替わりランダム化、
