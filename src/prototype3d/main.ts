@@ -55,7 +55,7 @@ let actionKey = '',
 const held = new Set<string>();
 let touchRun = false;
 const touch =
-  navigator.maxTouchPoints > 0 || matchMedia('(any-pointer: coarse)').matches
+  matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && matchMedia('(hover: none)').matches)
     ? mountTouchControls(root, toggleCrouch, toggleRun, changeZoom)
     : undefined;
 const view: View = { x: 0, y: 1.52, z: 7.55, yaw: 0, pitch: -0.115, fov: 64 };
