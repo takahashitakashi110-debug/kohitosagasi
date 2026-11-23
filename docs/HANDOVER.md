@@ -11,6 +11,8 @@
 
 ## 一人称3D試作「ほほもちの朝」　2026-11-23
 
+スマートフォンの試遊URLは [3D版GitHub Pages](https://takahashitakashi110-debug.github.io/kohitosagasi-3d-play/) です。左下の移動スティックと景色のドラッグを同時に使えます。撮影とズームは画面ボタンにあります。公開用は `npm.cmd run build:3d-pages` で作り、`dist/3d-pages/` の中身を [配布専用リポジトリ](https://github.com/takahashitakashi110-debug/kohitosagasi-3d-play) の `gh-pages` ブランチ直下へ配信します。戻す場合は配布コミットをrevertします。テストは `npm.cmd run e2e -- touch3d.spec.ts` で縦・横のタッチ操作と写真復元を検査します。
+
 [依頼 #28](https://github.com/takahashitakashi110-debug/kohitosagasi/issues/28) と [PR #27](https://github.com/takahashitakashi110-debug/kohitosagasi/pull/27) を使用。作業ブランチは `codex/hohomochi-p0`、分岐元は本流 `4496b6e`。[P0の受入条件と後続設計](./REQUEST_P0_HOHOMOCHI.md) が3D側の引き継ぎ先です。この節以降に記載した従来のゲーム仕様は2D版のものです。
 
 - `prototype3d.html` が入口です。TypeScript、Three.js 0.180.0、WebGL 2を使います。自室と短い道は連続した空間です。植え込みには、手元の実、葉の上の磨かれた実、任意で拾って返す実があります。朝以外にも痕跡を調べられます。

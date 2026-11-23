@@ -19,6 +19,7 @@ import { Journal } from './storage';
 import { World } from './world';
 import type { View } from './world';
 import { button, element, makeShell, Notebook, tool } from './interface';
+import { mountTouchControls } from './touch';
 
 type Mode = 'walk' | 'camera' | 'notebook' | 'menu' | 'interaction';
 const root = document.querySelector<HTMLElement>('#prototype')!;
@@ -52,6 +53,11 @@ let actionKey = '',
   menuKind = '',
   lastHome = true;
 const held = new Set<string>();
+let touchRun = false;
+const touch =
+  navigator.maxTouchPoints > 0 || matchMedia('(any-pointer: coarse)').matches
+    ? mountTouchControls(root, toggleCrouch, toggleRun, changeZoom)
+    : undefined;
 const view: View = { x: 0, y: 1.52, z: 7.55, yaw: 0, pitch: -0.115, fov: 64 };
 const dist = (p: { x: number; z: number }) => Math.hypot(view.x - p.x, view.z - p.z);
 const active = () => ready && (mode === 'walk' || mode === 'camera');
@@ -128,9 +134,7 @@ ui.retry.onclick = () => void journal.retry();
 function setMode(next: Mode) {
   mode = next;
   root.dataset.mode = next;
-  held.clear();
-  drag = undefined;
-  focusedSince = null;
+  resetInput();
   actionKey = '';
   cameraBtn.setAttribute('aria-pressed', String(next === 'camera'));
   if (next === 'walk' || next === 'camera') {
@@ -166,8 +170,11 @@ function openBook() {
 function settings() {
   if (!ready) return;
   openPanel('menu', t.menu);
-  ui.content.append(element('p', '', t.instructions), element('p', '', t.cameraInstructions));
-  const label = element('label', '', t.sensitivity);
+  ui.content.append(
+    element('p', '', touch ? t.touchGuide : t.instructions),
+    element('p', '', touch ? t.touchCameraGuide : t.cameraInstructions),
+  );
+  const label = element('label', '', touch ? t.touchSensitivity : t.sensitivity);
   const range = element('input');
   range.type = 'range';
   range.min = '0.4';
@@ -324,6 +331,33 @@ async function shutter() {
 }
 
 let drag: { id: number; x: number; y: number; total: number } | undefined;
+function resetInput() {
+  held.clear();
+  drag = undefined;
+  focusedSince = null;
+  touchRun = false;
+  touch?.reset();
+  touch?.pace(crouch, touchRun);
+}
+function toggleCrouch() {
+  if (!active()) return;
+  crouch = !crouch;
+  touchRun = false;
+  focusedSince = null;
+  touch?.pace(crouch, touchRun);
+}
+function toggleRun() {
+  if (!active()) return;
+  touchRun = !touchRun;
+  crouch = false;
+  focusedSince = null;
+  touch?.pace(crouch, touchRun);
+}
+function changeZoom(steps: number) {
+  if (mode !== 'camera') return;
+  zoomFov = Math.max(26, Math.min(64, zoomFov + steps * 5));
+  focusedSince = null;
+}
 function look(dx: number, dy: number) {
   if (!dx && !dy) return;
   view.yaw -= dx;
@@ -332,10 +366,11 @@ function look(dx: number, dy: number) {
 }
 ui.canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
+  if (e instanceof PointerEvent && e.pointerType === 'touch') return;
   toggleCamera();
 });
 ui.canvas.addEventListener('pointerdown', (e) => {
-  if (!active() || e.button !== 0) return;
+  if (!active() || drag || e.button !== 0) return;
   ui.canvas.focus();
   drag = { id: e.pointerId, x: e.clientX, y: e.clientY, total: 0 };
   ui.canvas.setPointerCapture(e.pointerId);
@@ -354,18 +389,17 @@ ui.canvas.addEventListener('pointerup', (e) => {
   if (!drag || drag.id !== e.pointerId || e.button !== 0) return;
   const click = drag.total < 5;
   drag = undefined;
-  if (click && mode === 'camera') void shutter();
+  if (click && e.pointerType !== 'touch' && mode === 'camera') void shutter();
 });
-ui.canvas.addEventListener('pointercancel', () => {
-  drag = undefined;
+ui.canvas.addEventListener('lostpointercapture', (e) => {
+  if (drag?.id === e.pointerId) drag = undefined;
 });
 ui.canvas.addEventListener(
   'wheel',
   (e) => {
     if (mode !== 'camera') return;
     e.preventDefault();
-    zoomFov = Math.max(26, Math.min(64, zoomFov + Math.sign(e.deltaY) * 5));
-    focusedSince = null;
+    changeZoom(Math.sign(e.deltaY));
   },
   { passive: false },
 );
@@ -397,8 +431,7 @@ window.addEventListener('keydown', (e) => {
   }
   if ((e.code === 'ControlLeft' || e.code === 'ControlRight') && !e.repeat) {
     e.preventDefault();
-    crouch = !crouch;
-    focusedSince = null;
+    toggleCrouch();
     return;
   }
   if (e.repeat) return;
@@ -418,29 +451,21 @@ window.addEventListener('keydown', (e) => {
   }
 });
 window.addEventListener('keyup', (e) => held.delete(e.code));
-window.addEventListener('blur', () => {
-  held.clear();
-  drag = undefined;
-  focusedSince = null;
-});
+window.addEventListener('blur', resetInput);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    held.clear();
-    drag = undefined;
-    focusedSince = null;
-  }
+  if (document.hidden) resetInput();
 });
 
 function movePlayer(elapsed: number) {
   const dt = Math.min(elapsed, 0.18);
-  const forward = Number(held.has('KeyW')) - Number(held.has('KeyS'));
-  const side = Number(held.has('KeyD')) - Number(held.has('KeyA'));
+  const forward = Number(held.has('KeyW')) - Number(held.has('KeyS')) + (touch?.axes.forward ?? 0);
+  const side = Number(held.has('KeyD')) - Number(held.has('KeyA')) + (touch?.axes.side ?? 0);
   const yaw = Number(held.has('ArrowRight')) - Number(held.has('ArrowLeft'));
   const pitch = Number(held.has('ArrowDown')) - Number(held.has('ArrowUp'));
   look(yaw * dt * 1.62, pitch * dt * 1.14);
-  const run = !crouch && (held.has('ShiftLeft') || held.has('ShiftRight'));
+  const run = !crouch && (touchRun || held.has('ShiftLeft') || held.has('ShiftRight'));
   if (forward || side) {
-    const amount = ((crouch ? 1.3 : run ? 4.75 : 2.85) * dt) / Math.hypot(forward, side);
+    const amount = ((crouch ? 1.3 : run ? 4.75 : 2.85) * dt) / Math.max(1, Math.hypot(forward, side));
     const c = Math.cos(view.yaw),
       s = Math.sin(view.yaw);
     const p = move(view.x, view.z, (side * c - forward * s) * amount, (-forward * c - side * s) * amount);
@@ -491,7 +516,16 @@ function drawFrame(dt: number) {
   else if (showing) behavior = 'show';
   else behavior = naturalBehavior(time);
   view.y = seated ? 0.96 : crouch ? 0.84 : 1.52;
-  view.fov = isCamera ? zoomFov : 64;
+  const lens = isCamera ? zoomFov : 64;
+  // Preserve a useful horizontal field of view when the phone is held upright.
+  const aspect = ui.canvas.clientWidth / Math.max(1, ui.canvas.clientHeight);
+  view.fov =
+    aspect < 0.8
+      ? Math.min(
+          110,
+          (360 / Math.PI) * Math.atan((Math.tan((lens * Math.PI) / 360) * 0.8) / Math.max(0.1, aspect)),
+        )
+      : lens;
   world.render(
     view,
     period,
@@ -525,7 +559,7 @@ function drawFrame(dt: number) {
             : t.scenery;
     showText(ui.focus, valid && behavior === 'cheek' && !sight.nut ? t.reframe : label);
     if (ui.focus.dataset.sight !== type) ui.focus.dataset.sight = type;
-    showText(ui.zoom, t.zoom(64 / view.fov));
+    showText(ui.zoom, t.zoom(64 / lens));
   } else evidence = { encounter: false, ecology: false };
   if (inHome() && !lastHome) {
     say(t.homeLater);
@@ -566,7 +600,8 @@ function drawFrame(dt: number) {
     actionKey = key;
     ui.actions.replaceChildren();
     if (isCamera) ui.actions.append(button(t.shutter, () => void shutter()));
-    else if (mode === 'walk' && where) ui.actions.append(button('E　' + prompt, () => interaction()));
+    else if (mode === 'walk' && where)
+      ui.actions.append(button((touch ? '' : 'E　') + prompt, () => interaction()));
     ui.keys.textContent = (isCamera ? t.cameraControls : t.controls) + (crouch ? '　·　' + t.crouched : '');
   }
 }
@@ -582,6 +617,7 @@ async function start() {
   ready = true;
   setMode('walk');
   refreshSave();
+  if (touch && !rec().traceSeen) say(t.touchGuide, 6);
   let before = performance.now();
   const tick = (now: number) => {
     const dt = Math.max(0, Math.min((now - before) / 1000, 1));

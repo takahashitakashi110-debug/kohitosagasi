@@ -546,3 +546,217 @@ figcaption span {
     padding: 9px 15px;
   }
 }
+
+#prototype[data-touch] {
+  --pad-size: clamp(92px, 21vmin, 112px);
+  --safe-left: max(12px, env(safe-area-inset-left));
+  --safe-right: max(12px, env(safe-area-inset-right));
+  --safe-bottom: max(12px, env(safe-area-inset-bottom));
+}
+[data-touch] .hud-top {
+  top: max(8px, env(safe-area-inset-top));
+  left: var(--safe-left);
+  right: var(--safe-right);
+  gap: 5px;
+}
+[data-touch] .identity {
+  padding: 6px 8px;
+  gap: 6px;
+}
+[data-touch] .sun {
+  display: none;
+}
+[data-touch] .location {
+  font-size: 0.91rem;
+  letter-spacing: 0.02em;
+}
+[data-touch] .brand {
+  font-size: 0.6rem;
+}
+[data-touch] .when {
+  font-size: 0.72rem;
+  padding-left: 6px;
+  white-space: nowrap;
+}
+[data-touch] .tools {
+  padding: 2px;
+  gap: 0;
+}
+[data-touch] .tool {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 4px;
+  flex-direction: column;
+  gap: 3px;
+}
+[data-touch] .tool span {
+  display: inline;
+  font-size: 0.61rem;
+}
+[data-touch] button {
+  touch-action: manipulation;
+}
+[data-touch] .message {
+  top: calc(max(8px, env(safe-area-inset-top)) + 78px);
+  font-size: 0.83rem;
+  width: max-content;
+}
+[data-touch] .hud-bottom {
+  left: var(--safe-left);
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+  height: var(--pad-size);
+  display: block;
+}
+[data-touch] .field-note {
+  position: absolute;
+  bottom: calc(100% + 9px);
+  left: 0;
+  width: min(100%, 29rem);
+  padding: 5px 9px;
+}
+[data-touch] .field-label,
+[data-touch] .keys {
+  display: none;
+}
+[data-touch] .hint {
+  font-size: 0.86rem;
+  margin: 0;
+}
+[data-touch] .actions {
+  position: absolute;
+  right: 0;
+  bottom: 50px;
+  max-width: calc(100% - var(--pad-size) - 8px);
+}
+[data-touch] .actions button {
+  min-height: 44px;
+  padding: 7px 13px;
+}
+[data-touch] .save-state {
+  position: fixed;
+  top: calc(max(8px, env(safe-area-inset-top)) + 51px);
+  right: var(--safe-right);
+  max-width: min(80vw, 360px);
+}
+[data-touch] .zoom {
+  top: auto;
+  bottom: calc(var(--safe-bottom) + 4px);
+  right: calc(var(--safe-right) + 102px);
+}
+[data-touch] #view,
+.move-pad,
+.touch-tools {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.move-pad,
+.touch-tools {
+  position: absolute;
+  bottom: var(--safe-bottom);
+  z-index: 3;
+  touch-action: none;
+}
+.move-pad {
+  left: var(--safe-left);
+  width: var(--pad-size);
+  height: var(--pad-size);
+  border: 1.5px solid #fdf4daaa;
+  border-radius: 50%;
+  background: #283e35bd;
+  box-shadow:
+    0 2px 10px #25362c44,
+    inset 0 0 0 5px #fbf6dc16;
+}
+.pad-thumb {
+  position: absolute;
+  inset: 30%;
+  border-radius: 50%;
+  background: #f6eed9;
+  border: 2px solid #819078;
+  box-shadow: 0 2px 5px #16291d66;
+  pointer-events: none;
+}
+.pad-mark {
+  position: absolute;
+  color: #fff7d9da;
+  font: 14px/1 sans-serif;
+  pointer-events: none;
+}
+.pad-mark.north {
+  top: 4%;
+  left: 50%;
+  translate: -50% 0;
+}
+.pad-mark.south {
+  bottom: 4%;
+  left: 50%;
+  translate: -50% 0;
+}
+.pad-mark.west {
+  left: 5%;
+  top: 50%;
+  translate: 0 -50%;
+}
+.pad-mark.east {
+  right: 5%;
+  top: 50%;
+  translate: 0 -50%;
+}
+.touch-tools {
+  right: var(--safe-right);
+  display: flex;
+  gap: 5px;
+}
+.touch-tools button {
+  min-width: 45px;
+  height: 45px;
+  border: 1px solid #e5dcc7;
+  border-radius: 7px;
+  color: var(--ink);
+  background: #fbf5e5ee;
+  font-size: 0.84rem;
+  padding: 4px 10px;
+}
+.touch-tools button[aria-pressed='true'] {
+  color: #fff8e9;
+  background: var(--ink);
+}
+.touch-tools .lens-step {
+  font-size: 1.3rem;
+}
+#prototype:not([data-mode='camera']) .lens-step,
+#prototype:not([data-mode='walk']) .pace,
+#prototype:not([data-mode='walk']):not([data-mode='camera']) :is(.touch-tools, .move-pad) {
+  display: none;
+}
+[data-touch] .panel {
+  width: min(820px, 94vw);
+  max-height: 88dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+[data-touch] .panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--paper);
+}
+[data-touch] .panel button {
+  min-height: 44px;
+}
+[data-touch] .writing-page :is(textarea, select) {
+  font-size: 16px;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  [data-touch] .field-note {
+    width: min(42vw, 340px);
+  }
+  [data-touch] .panel.wide .book-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+  [data-touch] .panel.wide .print > img {
+    max-height: 37dvh;
+  }
+}
