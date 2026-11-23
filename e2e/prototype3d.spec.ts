@@ -11,7 +11,8 @@ const action = (text: string): Landmark => ({ selector: '.actions button', text 
 const message = (text: string): Landmark => ({ selector: '.message', text });
 const errors = new WeakMap<Page, string[]>();
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page }, info) => {
+  if (info.tags.includes('@timed-photo')) await page.clock.install();
   const list: string[] = [];
   errors.set(page, list);
   page.on('pageerror', (e) => list.push(e.message));
@@ -67,16 +68,21 @@ async function book(p: Page) {
   await expect(p.getByRole('dialog')).toBeVisible();
 }
 async function shoot(p: Page, sight: 'encounter' | 'ecology') {
-  // Shoot through the normal left mouse binding while the rendered finder shows the desired pose.
-  const atPose = (wanted: string) => document.querySelector<HTMLElement>('.focus')?.dataset.sight === wanted;
-  await p.waitForFunction(
-    (wanted) => document.querySelector<HTMLElement>('.focus')?.dataset.sight !== wanted,
-    sight,
-    { polling: 'raf', timeout: 25000 },
-  );
-  await p.waitForFunction(atPose, sight, { polling: 'raf', timeout: 25000 });
-  const size = p.viewportSize()!;
-  await p.mouse.click(size.width / 2, size.height / 2);
+  // Keep the displayed frame in the finder until the real mouse release arrives, even on a slow GPU.
+  const now = await p.evaluate(() => Date.now());
+  await p.clock.pauseAt(now + 10_000);
+  try {
+    const finder = p.locator('.focus');
+    for (let frame = 0; frame < 24; frame++) {
+      await p.clock.fastForward(400);
+      if ((await finder.getAttribute('data-sight')) === sight) break;
+    }
+    expect(await finder.getAttribute('data-sight')).toBe(sight);
+    const size = p.viewportSize()!;
+    await p.mouse.click(size.width / 2, size.height / 2);
+  } finally {
+    await p.clock.resume();
+  }
   return committed(p);
 }
 async function screenshot(p: Page, info: TestInfo, name: string) {
@@ -209,7 +215,7 @@ async function exportPrint(p: Page, info: TestInfo, name: string) {
   await (await waiting).saveAs(info.outputPath(name));
 }
 
-test('walk, photograph two compositions, select either print and restore the exact journal', async ({
+test('walk, photograph two compositions, select either print and restore the exact journal', { tag: '@timed-photo' }, async ({
   page: p,
 }, info) => {
   const memo = '頬の左右が、ちょっと光った。\n同じ実かな？ <葉>　';
@@ -312,7 +318,7 @@ test('walk, photograph two compositions, select either print and restore the exa
   ).toEqual(['legacy-save-sentinel', 'legacy-settings-sentinel']);
 });
 
-test('first ecology shot alone, optional trust, scare recovery, sitting and four explicit rests', async ({
+test('first ecology shot alone, optional trust, scare recovery, sitting and four explicit rests', { tag: '@timed-photo' }, async ({
   page: p,
 }) => {
   await investigate(p);
