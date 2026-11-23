@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 // Nodeの型パッケージを増やさず、ローカルで既存のChromiumを使う場合だけ指定できる。
-declare const process: { env: { PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?: string } };
+declare const process: { env: { CI?: string; PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?: string } };
 
 export default defineConfig({
   testDir: './e2e',
@@ -9,7 +9,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: true,
   retries: 0,
-  workers: 2,
+  // Hosted runners share CPU rendering between WebGL contexts. Keep their pixel comparisons serial.
+  workers: process.env.CI ? 1 : 2,
   timeout: 20_000,
   expect: { timeout: 5_000 },
   reporter: [['list'], ['json', { outputFile: 'test-results/results.json' }]],
@@ -29,6 +30,7 @@ export default defineConfig({
     ...[{ width: 1280, height: 720 }, { width: 1920, height: 1080 }].map(viewport => ({
       name: 'desktop-' + viewport.width, testMatch: '**/prototype3d.spec.ts', timeout: 150_000,
       use: { viewport, isMobile: false, hasTouch: false, deviceScaleFactor: 1,
+        trace: { mode: 'retain-on-failure' as const, screenshots: false, snapshots: true },
         launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
           args: ['--enable-unsafe-swiftshader'] } },
     })),

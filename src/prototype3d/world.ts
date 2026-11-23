@@ -77,6 +77,7 @@ export class World {
   private period?: Period;
   private lastWidth = 0;
   private lastHeight = 0;
+  private stillView: string | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.renderer = new T.WebGLRenderer({
@@ -103,6 +104,26 @@ export class World {
   ) {
     const w = this.canvas.clientWidth,
       h = this.canvas.clientHeight;
+    // A stationary room or an empty hedge needs a redraw only when its camera, light or props change.
+    const stationary = behavior === 'absent' || behavior === 'hidden';
+    const key = stationary
+      ? [
+          w,
+          h,
+          period,
+          behavior,
+          carrying,
+          trusted,
+          view.x,
+          view.y,
+          view.z,
+          view.yaw,
+          view.pitch,
+          view.fov,
+        ].join('/')
+      : null;
+    if (key !== null && this.stillView === key) return;
+    this.stillView = key;
     if (w !== this.lastWidth || h !== this.lastHeight) {
       this.renderer.setSize(w, h, false);
       this.camera.aspect = w / Math.max(1, h);
@@ -194,7 +215,8 @@ export class World {
   }
 
   snapshot() {
-    // Copy immediately, before the compositor clears WebGL's default framebuffer.
+    // Even for a still view, render into the current framebuffer immediately before the copy.
+    this.renderer.render(this.scene, this.camera);
     const copy = document.createElement('canvas');
     copy.width = this.canvas.width;
     copy.height = this.canvas.height;
@@ -212,6 +234,7 @@ export class World {
 
   async exhibit(photo: Photo | undefined, onBroken: () => void) {
     const generation = ++this.frameGeneration;
+    this.stillView = null;
     const m = this.set.frame.material;
     this.set.frame.visible = false;
     m.map?.dispose();
@@ -235,6 +258,7 @@ export class World {
       const factor = Math.min(1.43 / img.naturalWidth, 0.82 / img.naturalHeight);
       this.set.frame.scale.set(img.naturalWidth * factor, img.naturalHeight * factor, 1);
       this.set.frame.visible = true;
+      this.stillView = null;
     } catch {
       if (generation === this.frameGeneration) onBroken();
     }

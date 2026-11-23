@@ -471,6 +471,10 @@ function movePlayer(elapsed: number) {
     }
   }
 }
+function showText(node: HTMLElement, text: string) {
+  if (node.textContent !== text) node.textContent = text;
+}
+
 function drawFrame(dt: number) {
   const playing = active(),
     isCamera = mode === 'camera';
@@ -511,7 +515,7 @@ function drawFrame(dt: number) {
           ? 'encounter'
           : 'focus'
         : 'scene';
-    ui.focus.textContent =
+    const label =
       type === 'ecology'
         ? t.readyShot
         : type === 'encounter'
@@ -519,17 +523,17 @@ function drawFrame(dt: number) {
           : type === 'focus'
             ? t.focus
             : t.scenery;
-    if (valid && behavior === 'cheek' && !sight.nut) ui.focus.textContent = t.reframe;
-    ui.focus.dataset.sight = type;
-    ui.zoom.textContent = t.zoom(64 / view.fov);
+    showText(ui.focus, valid && behavior === 'cheek' && !sight.nut ? t.reframe : label);
+    if (ui.focus.dataset.sight !== type) ui.focus.dataset.sight = type;
+    showText(ui.zoom, t.zoom(64 / view.fov));
   } else evidence = { encounter: false, ecology: false };
   if (inHome() && !lastHome) {
     say(t.homeLater);
   }
   lastHome = inHome();
   const place = inHome() ? t.home : dist(actorSpot) < 5.3 ? t.hedge : t.street;
-  ui.place.textContent = place;
-  ui.when.textContent = t.day(rec().day) + ' · ' + t.periods[period];
+  showText(ui.place, place);
+  showText(ui.when, t.day(rec().day) + ' · ' + t.periods[period]);
   const followed = rec().followPhotoId;
   const bookmark = followed ? rec().notes[followed]?.hypothesisId : '';
   let hint = inHome() ? (journal.photos.length ? t.homeLater : t.roomHint) : t.roadHint;
@@ -542,7 +546,7 @@ function drawFrame(dt: number) {
     else if (rec().ecologySeen) hint = t.afterHint;
     else if (rec().traceSeen) hint = t.nearHint;
   }
-  ui.hint.textContent = hint;
+  showText(ui.hint, hint);
   if (performance.now() > messageUntil && ui.message.textContent) ui.message.textContent = '';
   const where = context();
   const prompt =
