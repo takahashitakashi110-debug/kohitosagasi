@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summer art preview</title>
+<style>
+  body { margin: 24px; background: #e7e1cc; color: #303d39; font: 16px system-ui; }
+  canvas { width: 840px; max-width: 100%; background: #b6c3a2; }
+</style>
+<h1>Summer art preview</h1>
+<p>Normal / special at 3×, followed by both at game size. Last row: hidden rump only.</p>
+<canvas id="preview" width="840" height="1480"></canvas>
+<script type="module">
+  import { drawKohito } from '/src/render/kohitoArt.ts';
+  import { SUBJECT_BOUNDS } from '/src/data/kohito.ts';
+  import { KOHITO_IDS } from '/src/game/state.ts';
+  import { TEXT } from '/src/data/text.ts';
+  const c = document.querySelector('canvas').getContext('2d');
+  function frame(t) {
+    c.clearRect(0, 0, 840, 1480);
+    [...KOHITO_IDS, 'tarejiri'].forEach((id, row) => {
+      const hidden = row === 6; const y = 130 + row * 200;
+      c.fillStyle = '#303d39'; c.font = '16px system-ui'; c.fillText(TEXT.names[id], 12, y);
+      [false, true, false, true].forEach((special, col) => {
+        c.save(); c.translate(230 + col * 170, y); const scale = col < 2 ? 3 : 1; c.scale(scale, scale);
+        const b = hidden ? { left: -6, top: -7, w: 26, h: 27 } : SUBJECT_BOUNDS[id];
+        c.strokeStyle = '#fffdf1'; c.lineWidth = 1 / scale; c.strokeRect(b.left, b.top, b.w, b.h);
+        drawKohito(c, id, 0, 0, t / 1000, special, hidden); c.restore();
+      });
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</html>

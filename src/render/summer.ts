@@ -1,4 +1,5 @@
 import type { SpotId } from '../game/state';
+import { drawSummerTitleImage } from './summerImages';
 
 /** 夏の景色用。既存キャラクターとUIの色は変えず、風景を独立して調整する。 */
 export const SUMMER = {
@@ -125,6 +126,7 @@ export function drawSummerSpotIcon(c: CanvasRenderingContext2D, spot: SpotId, x:
 
 /** 画像が読めないときにも、青空と入道雲のあるタイトルを描く。 */
 export function drawSummerTitle(c: CanvasRenderingContext2D): void {
+  if (drawSummerTitleImage(c)) return;
   c.save(); c.fillStyle = SUMMER.sky; c.fillRect(12, 190, 336, 190);
   for (const [x, y, r] of [[85, 215, 22], [110, 209, 28], [137, 219, 20], [266, 226, 27], [293, 219, 31]]) {
     oval(c, x, y, r, r * 0.65, SUMMER.cloud);

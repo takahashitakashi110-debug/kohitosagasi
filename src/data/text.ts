@@ -3,7 +3,7 @@ export const TEXT = {
   title: 'こひとさがし', subtitle: 'あつぎの、雨のない夏。',
   start: 'はじめる', restart: 'はじめから', continue: 'つづける',
   confirmRestart: '今までの記録を消して、はじめから遊びますか？',
-  intro: ['夏休み、親戚のいえに来た。', 'このまちには、少し変なものがいる。', 'そっと近づいて、写真に残そう。'],
+  intro: ['夏休みの1週間だけ、', 'おばあちゃんの住む町へ遊びに来た。', '少し変わったものを、写真に残そう。'],
   town: 'あつぎのまち', home: 'いえ（かえる）', map: 'まちの地図',
   spots: { shoutengai: '商店街', kawazoi: '川沿い', danchi: '団地', ekimae: '駅前' },
   times: { morning: '朝', noon: '昼', evening: '夕', night: '夜' },
