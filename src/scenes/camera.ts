@@ -11,13 +11,15 @@ import { drawKohito } from '../render/kohitoArt';
 import { P } from '../render/palette';
 import type { UI } from '../render/ui';
 import type { Input } from '../engine/input';
+import { residentAt } from '../data/townspeople';
+import { drawResident } from '../render/townspeople';
 
 export const FINDER = { x: 72, y: 176, w: 216, h: 288 };
 type Rect = ShotInput['subject'];
 export function subjectRect(game: GameState, k: KohitoRuntime): Rect {
   const bob = Math.sin(game.elapsed * 2.5) * 1.5;
   const bounds = SUBJECT_BOUNDS[k.id];
-  const center = cameraCenter(game.player, k);
+  const center = cameraCenter(game.player, game.cameraAnchor ?? k);
   return { x: 180 + (k.x - center.x + bounds.left) * CAMERA_ZOOM - game.pan, y: 320 + (k.y - center.y + bounds.top + bob) * CAMERA_ZOOM, w: bounds.w * CAMERA_ZOOM, h: bounds.h * CAMERA_ZOOM };
 }
 function intersection(a: Rect, b: Rect): Rect {
@@ -49,6 +51,11 @@ export function recordPhoto(game: GameState, id: KohitoId, shot: ShotResult, hid
   writeSave(save);
 }
 export function takePhoto(game: GameState): void {
+  if (game.residentTarget) {
+    const resident = residentAt(game.save.location);
+    if (resident?.id === game.residentTarget) game.residentFeedback = { id: resident.id, frame: game.elapsed, hintGained: false };
+    game.scene = 'field'; return;
+  }
   const k = game.kohitos.find(subject => subject.id === game.cameraTarget);
   if (!k) { game.scene = 'field'; return; }
   const shot = k.escaped || k.fleeing > 0 ? scoreShot({ subject: { x: 0, y: 0, w: 0, h: 0 }, finder: FINDER, heldMs: game.heldMs, distance: distance(game.player, k), moment: false }) : evaluateCamera(game, k);
@@ -73,6 +80,20 @@ export function drawCamera(ui: UI, game: GameState, input: Input): void {
   ui.text(TEXT.keyboardMore, 180, 620, 13, P.white, 'center');
 }
 export function drawFeedback(ui: UI, game: GameState): void {
+  if (game.residentFeedback) {
+    const feedback = game.residentFeedback;
+    ui.buttons = [];
+    ui.ctx.fillStyle = P.shadow; ui.ctx.fillRect(0, 0, 360, 640);
+    ui.panel(18, 115, 324, 427);
+    ui.text(TEXT.residentResult, 180, 146, 22, P.green, 'center');
+    ui.text(TEXT.residentNames[feedback.id], 180, 184, 17, P.ink, 'center');
+    ui.ctx.save(); ui.ctx.translate(180, 290); ui.ctx.scale(1.6, 1.6);
+    drawResident(ui.ctx, feedback.id, 0, 0, feedback.frame); ui.ctx.restore();
+    ui.wrap(TEXT.residentNotes[feedback.id], 40, 346, 280, 16);
+    ui.wrap(TEXT.residentNoHint, 40, 416, 280, 14, P.green);
+    ui.button(TEXT.close, 'close', 68, 474, 224, 46, true);
+    return;
+  }
   const feedback = game.feedback;
   if (!feedback) return;
   ui.buttons = [];

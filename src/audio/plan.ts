@@ -3,7 +3,7 @@ import type { KohitoId } from '../game/state';
 export type SoundEvent =
   | { type: 'step'; sneaking: boolean }
   | { type: 'focus'; level: 0.6 | 1 }
-  | { type: 'shutter' | 'hint' | 'escape' | 'ending' }
+  | { type: 'shutter' | 'hint' | 'escape' | 'ending' | 'resident' }
   | { type: 'call'; id: KohitoId };
 
 export interface Note {
@@ -31,6 +31,7 @@ export function planSound(event: SoundEvent): Note[] {
     // シャッターの2連が終わってから3音を鳴らす。
     case 'hint': return [660, 830, 1100].map((f, i) => note('sine', f, f, 0.13, 0.18, 0.18 + i * 0.16));
     case 'escape': return [note('triangle', 900, 140, 0.28, 0.16)];
+    case 'resident': return [note('triangle', 420, 240, 0.18, 0.14, 0.15)];
     case 'ending': return [0, 0.8, 1.7, 2.7].map(delay => drop(delay));
     case 'call':
       switch (event.id) {

@@ -4,7 +4,7 @@ const atlasUrl = new URL('../assets/summer/kohitos.png', import.meta.url).href;
 const townUrl = new URL('../assets/summer/town.webp', import.meta.url).href;
 
 /** Lazy loading also keeps the existing vector-only path usable without a DOM. */
-function localImage(url: string): () => HTMLImageElement | undefined {
+export function localImage(url: string): () => HTMLImageElement | undefined {
   let image: HTMLImageElement | undefined;
   let failed = false;
   return () => {
@@ -19,6 +19,11 @@ function localImage(url: string): () => HTMLImageElement | undefined {
 }
 const atlas = localImage(atlasUrl);
 const town = localImage(townUrl);
+const motion = localImage(new URL('../assets/motion/kohitos-motion.webp', import.meta.url).href);
+
+export function motionFrame(elapsed: number): number {
+  return Math.floor(Math.max(0, elapsed) / 0.35) % 4;
+}
 
 // Destinations remain inside SUBJECT_BOUNDS; no scoring or occlusion changes.
 const poses: Record<KohitoId, { row: number; x: number; y: number; w: number; h: number }> = {
@@ -31,11 +36,13 @@ const poses: Record<KohitoId, { row: number; x: number; y: number; w: number; h:
 };
 
 /** Called after the same translation/bob used by the original vector drawing. */
-export function drawSummerKohito(c: CanvasRenderingContext2D, id: KohitoId, special: boolean, hidden: boolean): boolean {
-  const image = atlas();
+export function drawSummerKohito(c: CanvasRenderingContext2D, id: KohitoId, special: boolean, hidden: boolean, elapsed?: number): boolean {
+  const animated = elapsed !== undefined && !special ? motion() : undefined;
+  const image = animated ?? atlas();
   if (!image) return false;
   const pose = id === 'tarejiri' && hidden ? { row: 6, x: -5, y: -6, w: 25, h: 26 } : poses[id];
-  c.drawImage(image, (special ? 256 : 0) + 4, pose.row * 256 + 4, 248, 248, pose.x, pose.y, pose.w, pose.h);
+  const column = animated ? motionFrame(elapsed!) : special ? 1 : 0;
+  c.drawImage(image, column * 256 + 4, pose.row * 256 + 4, 248, 248, pose.x, pose.y, pose.w, pose.h);
   return true;
 }
 

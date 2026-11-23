@@ -108,7 +108,8 @@ test('bundled images reach field, camera, feedback, all album pages and ending',
     }
     await tap(page, 'album');
     for (let i = 0; i < row; i++) await tap(page, 'next');
-    await expect.poll(draws).toContain(`album:${row}:false`);
+    const moment = await page.evaluate(id => JSON.parse(localStorage.getItem('kohitosagasi.save.v1')!).album[id].best.moment, id);
+    await expect.poll(draws).toContain(`album:${row}:${moment}`);
     await separated();
     await page.screenshot({ path: info.outputPath(`loaded-${id}-album.png`), fullPage: true });
   }
@@ -118,7 +119,7 @@ test('bundled images reach field, camera, feedback, all album pages and ending',
 test('image failures keep the game playable with vector art', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
-  await page.route(/\/assets\/(kohitos-.*\.png|town-.*\.webp)$/, route => route.abort());
+  await page.route(/\/assets\/.*\.(png|webp|mp3)$/, route => route.abort());
   await page.goto('/?e2e=1');
   await tap(page, 'start'); await tap(page, 'spot:kawazoi');
   await expect.poll(() => page.evaluate(() => window.__kohitoE2E!.buttons().some(b => b.action === 'camera'))).toBe(true);

@@ -5,6 +5,7 @@ export interface SoundSnapshot {
   scene: Scene; visit: string; x: number; y: number; moving: boolean; sneaking: boolean;
   cameraHeld: boolean; cameraTarget: KohitoId | null; heldMs: number;
   feedback: Pick<PhotoFeedback, 'hintGained'> | null; escapedCount: number;
+  residentResult?: boolean;
   kohitos: { id: KohitoId; x: number; y: number; specialRemaining: number; escaped: boolean; fleeing: number }[];
 }
 export interface SoundDetectionState { stepDistance: number }
@@ -14,7 +15,8 @@ export function soundSnapshot(game: GameState, cameraHeld: boolean): SoundSnapsh
     x: game.player.x, y: game.player.y, moving: game.moving, sneaking: game.sneaking,
     cameraHeld, cameraTarget: game.cameraTarget, heldMs: game.heldMs,
     // 結果の同一性で「出た瞬間」を判定する。結果を変更する処理はここにはない。
-    feedback: game.feedback, escapedCount: game.escaped.size,
+    feedback: game.feedback ?? game.residentFeedback, escapedCount: game.escaped.size,
+    residentResult: !!game.residentFeedback,
     kohitos: game.kohitos.map(({ id, x, y, specialRemaining, escaped, fleeing }) => ({ id, x, y, specialRemaining, escaped, fleeing })),
   };
 }
@@ -40,6 +42,7 @@ export function detectSoundEvents(prev: SoundSnapshot, next: SoundSnapshot,
   }
   if (next.feedback && next.feedback !== prev.feedback) {
     events.push({ type: 'shutter' });
+    if (next.residentResult) events.push({ type: 'resident' });
     if (next.feedback.hintGained) events.push({ type: 'hint' });
   }
   if (next.scene === 'field' && !next.feedback && prev.visit === next.visit) {

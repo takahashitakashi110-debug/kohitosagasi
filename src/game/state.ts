@@ -1,6 +1,8 @@
 import type { ShotResult } from './photo';
 import type { KohitoRuntime } from './kohito';
 import type { Point } from '../engine/canvas';
+import type { ResidentId } from '../data/townspeople';
+import type { ResidentFeedback } from './subjects';
 
 export const SPOT_IDS = ['shoutengai', 'kawazoi', 'danchi', 'ekimae'] as const;
 export const TIMES = ['morning', 'noon', 'evening', 'night'] as const;
@@ -50,10 +52,13 @@ export interface GameState {
   player: Point; kohitos: KohitoRuntime[]; escaped: Set<KohitoId>; visitKey: string;
   elapsed: number; moving: boolean; sneaking: boolean; traces: Point[];
   cameraTarget: KohitoId | null; heldMs: number; pan: number; feedback: PhotoFeedback | null;
+  residentTarget: ResidentId | null; residentFeedback: ResidentFeedback | null;
+  subjectChoice: KohitoId | ResidentId | null; cameraAnchor: Point | null;
   albumTab: number; albumPage: number; endingTime: number; mapChoice: number;
 }
 export function createGame(save = freshSave(), hasSave = false): GameState {
   return { scene: 'title', save, hasSave, returnScene: 'map', player: { x: 288, y: 420 }, kohitos: [], escaped: new Set(), visitKey: '',
     elapsed: 0, moving: false, sneaking: false, traces: [], cameraTarget: null, heldMs: 0, pan: 0, feedback: null,
+    residentTarget: null, residentFeedback: null, subjectChoice: null, cameraAnchor: null,
     albumTab: 0, albumPage: 0, endingTime: 0, mapChoice: 0 };
 }

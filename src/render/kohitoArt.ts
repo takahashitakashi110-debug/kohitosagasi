@@ -142,10 +142,10 @@ function drawTarejiri(c: CanvasRenderingContext2D, elapsed: number, special: boo
   }
 }
 
-export function drawKohito(c: CanvasRenderingContext2D, id: KohitoId, x: number, y: number, elapsed: number, special = false, hidden = false): void {
+export function drawKohito(c: CanvasRenderingContext2D, id: KohitoId, x: number, y: number, elapsed: number, special = false, hidden = false, animated = false): void {
   c.save(); c.translate(x, y + Math.sin(elapsed * 2.5) * 1.5);
   ellipse(c, 0, 12, 15, 4, P.shadow);
-  if (drawSummerKohito(c, id, special, hidden)) { c.restore(); return; }
+  if (drawSummerKohito(c, id, special, hidden, animated ? elapsed : undefined)) { c.restore(); return; }
   switch (id) {
     case 'urasumi': drawUrasumi(c, elapsed, special); break;
     case 'haritsuki': drawHaritsuki(c, elapsed, special); break;

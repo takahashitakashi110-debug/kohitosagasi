@@ -4,6 +4,7 @@ import { WebAudioPlayer } from './player';
 import type { SoundPlayer } from './player';
 import { browserStorage, readMuted, writeMuted } from './settings';
 import type { StorageSource } from './settings';
+import { sampleFor } from './samples';
 
 export class SoundController {
   private isMuted: boolean;
@@ -19,6 +20,10 @@ export class SoundController {
   }
   play(events: readonly SoundEvent[]): void {
     if (this.isMuted) return;
-    for (const event of events) this.player.play(planSound(event));
+    for (const event of events) {
+      const sample = sampleFor(event);
+      if (sample && this.player.playSample?.(sample)) continue;
+      this.player.play(planSound(event));
+    }
   }
 }

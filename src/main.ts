@@ -12,7 +12,8 @@ import { UI } from './render/ui';
 import { P } from './render/palette';
 import { drawTitle } from './scenes/title';
 import { drawMap } from './scenes/map';
-import { drawField, updateFieldKohitos, nearestKohito } from './scenes/field';
+import { drawField, updateFieldKohitos } from './scenes/field';
+import { beginCamera, cycleSubject } from './game/subjects';
 import { drawCamera, drawFeedback, takePhoto } from './scenes/camera';
 import { drawAlbum } from './scenes/album';
 import { drawDayend } from './scenes/dayend';
@@ -67,6 +68,8 @@ function command(action: string): void {
   if (action === 'toggle-sound') { sound.toggleMute(); return; }
   if (action === 'confirm' && game.scene !== 'field' && game.scene !== 'camera') action = 'primary';
   if (game.feedback) { if (['close', 'cancel', 'primary'].includes(action)) { game.feedback = null; input.suppressCamera(); } return; }
+  if (game.residentFeedback) { if (['close', 'cancel', 'primary'].includes(action)) { game.residentFeedback = null; input.suppressCamera(); } return; }
+  if (game.scene === 'field' && action === 'change-subject') { cycleSubject(game); return; }
   if (action === 'album') { openAlbum(); return; }
   if (action === 'cancel' || action === 'back') {
     if (game.scene === 'camera') { game.scene = 'field'; input.suppressCamera(); }
@@ -110,8 +113,8 @@ function command(action: string): void {
 startLoop(dt => {
   game.elapsed += dt;
   for (const action of input.commands.splice(0)) command(action);
-  input.fieldControls = !game.feedback && (game.scene === 'field' || game.scene === 'camera');
-  if (game.feedback) return;
+  input.fieldControls = !game.feedback && !game.residentFeedback && (game.scene === 'field' || game.scene === 'camera');
+  if (game.feedback || game.residentFeedback) return;
   if (game.scene === 'field') {
     const movement = input.movement;
     game.sneaking = movement.sneaking;
@@ -119,8 +122,7 @@ startLoop(dt => {
       ? movePlayer(game.player, movement, movement.sneaking, dt, SPOTS[game.save.location]) : false;
     updateFieldKohitos(game, dt, false);
     if (input.cameraHeld) {
-      const target = nearestKohito(game);
-      if (target && !target.fleeing) { game.cameraTarget = target.id; game.heldMs = 0; game.pan = 0; game.moving = false; game.scene = 'camera'; }
+      beginCamera(game);
     }
   } else if (game.scene === 'camera') {
     game.moving = false;
@@ -139,7 +141,7 @@ startLoop(dt => {
   switch (game.scene) {
     case 'title': drawTitle(ui, game.hasSave, sound.muted); break;
     case 'map': drawMap(ui, game.save, game.mapChoice); break;
-    case 'field': drawField(ui, game, input, sound.muted); if (game.feedback) drawFeedback(ui, game); break;
+    case 'field': drawField(ui, game, input, sound.muted); if (game.feedback || game.residentFeedback) drawFeedback(ui, game); break;
     case 'camera': drawCamera(ui, game, input); break;
     case 'album': drawAlbum(ui, game); break;
     case 'dayend': drawDayend(ui, game.save); break;

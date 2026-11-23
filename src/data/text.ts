@@ -1,4 +1,9 @@
 export const TEXT = {
+  changeSubject: '被写体をかえる', residentResult: '町の人でした！',
+  residentNoHint: 'こひとのヒントは増えなかった。',
+  residentNames: { shutter_breather: 'シャッターと深呼吸する人', drain_greeter: '側溝にあいさつする人', shadow_measurer: '日かげをはかる人', wind_angler: '風をつる人' },
+  residentClues: { shutter_breather: 'じゃばらが、呼吸するように伸び縮みする。', drain_greeter: '側溝へ何かを話しかけて、耳を澄ませている。', shadow_measurer: '傘の下で、影をじっとのぞきこんでいる。', wind_angler: '風がないのに、長いリボンが揺れている。' },
+  residentNotes: { shutter_breather: '毎朝、シャッターと一緒に深呼吸。じゃばらもおなかも、すう、はあ。', drain_greeter: '側溝に「おはよう」。返事があるまで、しばらく待つのが日課。', shadow_measurer: '今日の日かげは何センチ？ 傘と巻き尺で、まじめに調べている。', wind_angler: '今日はどんな風がつれるかな。竹ざおの先で、リボンが泳ぐ。' },
   soundOn: '音あり (M)', soundOff: '音なし (M)',
   title: 'こひとさがし', subtitle: 'あつぎの、雨のない夏。',
   start: 'はじめる', restart: 'はじめから', continue: 'つづける',

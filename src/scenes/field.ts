@@ -9,6 +9,11 @@ import { drawKohito, drawPlayer } from '../render/kohitoArt';
 import { P } from '../render/palette';
 import { drawObjects, drawTiles } from '../render/tiles';
 import type { UI } from '../render/ui';
+import { SPOTS } from '../data/spots';
+import { residentAt } from '../data/townspeople';
+import { drawResident } from '../render/townspeople';
+import { moveKohito } from '../game/motion';
+import { cameraBody, nearbySubjects, selectedSubject } from '../game/subjects';
 
 export function nearestKohito(game: GameState): KohitoRuntime | undefined {
   return game.kohitos.filter(k => !k.escaped && k.fleeing === 0 && distance(k, game.player) <= 120).sort((a, b) => distance(a, game.player) - distance(b, game.player))[0];
@@ -16,6 +21,7 @@ export function nearestKohito(game: GameState): KohitoRuntime | undefined {
 export function updateFieldKohitos(game: GameState, dt: number, cameraHeld: boolean): void {
   for (const k of game.kohitos) {
     tickKohito(k, { distance: distance(k, game.player), moving: game.moving, sneaking: game.sneaking, cameraHeld }, dt);
+    if (game.save.location !== 'home') moveKohito(k, dt, SPOTS[game.save.location]);
     if ((k.fleeing > 0 || k.escaped) && !game.escaped.has(k.id)) markEscaped(game, k.id);
   }
 }
@@ -25,12 +31,14 @@ export function drawWorld(ui: UI, game: GameState, cameraMode = false): void {
   if (spot === 'home') return;
   c.save();
   if (cameraMode) {
-    const center = cameraCenter(game.player, game.kohitos.find(k => k.id === game.cameraTarget));
+    const center = cameraCenter(game.player, game.cameraAnchor ?? cameraBody(game));
     c.translate(180 - game.pan, 320); c.scale(CAMERA_ZOOM, CAMERA_ZOOM); c.translate(-center.x, -center.y);
   }
   else { const camera = fieldCamera(game.player); c.translate(-camera.x, -camera.y); }
   drawTiles(c, spot);
   drawObjects(c, spot, game.save.time, game.elapsed);
+  const resident = residentAt(spot);
+  if (resident) drawResident(c, resident.id, resident.x, resident.y, game.elapsed);
   for (const trace of game.traces) { c.fillStyle = P.water; c.globalAlpha = 0.5; c.beginPath(); c.ellipse(trace.x, trace.y, 9, 3, 0.5, 0, Math.PI * 2); c.fill(); c.globalAlpha = 1; }
   for (const k of game.kohitos) {
     if (k.escaped) continue;
@@ -39,10 +47,10 @@ export function drawWorld(ui: UI, game: GameState, cameraMode = false): void {
     const hidden = k.id === 'tarejiri' && k.fullRemaining === 0;
     if (k.id === 'tarejiri' && k.fullRemaining > 7.4) {
       c.save(); c.globalAlpha *= (8 - k.fullRemaining) / 0.6;
-      drawKohito(c, k.id, k.x, k.y - (k.fullRemaining - 7.4) * 8, game.elapsed, k.specialRemaining > 0, false);
+      drawKohito(c, k.id, k.x, k.y - (k.fullRemaining - 7.4) * 8, game.elapsed, k.specialRemaining > 0, false, true);
       c.restore();
-      drawKohito(c, k.id, k.x, k.y, game.elapsed, false, true);
-    } else drawKohito(c, k.id, k.x, k.y, game.elapsed, k.specialRemaining > 0, hidden);
+      drawKohito(c, k.id, k.x, k.y, game.elapsed, false, true, true);
+    } else drawKohito(c, k.id, k.x, k.y, game.elapsed, k.specialRemaining > 0, hidden, true);
     if (hidden) { c.fillStyle = P.concrete; c.fillRect(k.x - 18, k.y - 39, 28, 33); }
     c.restore();
     if (!cameraMode && k.fleeing === 0) {
@@ -71,10 +79,13 @@ export function drawField(ui: UI, game: GameState, input: Input, muted = false):
   ui.button(TEXT.album, 'album', 244, 24, 96);
   ui.button(TEXT.map, 'map', 207, 455, 138);
   drawStick(ui, input);
-  const target = nearestKohito(game);
+  const target = selectedSubject(game);
   if (target) {
     ui.button(TEXT.camera, 'camera', 242, 521, 102, 72, true);
-    ui.wrap(target.id === 'tarejiri' ? target.fullRemaining > 0 ? TEXT.tarejiriOut : TEXT.waitTarejiri : TEXT.clues[target.id], 20, 116, 320, 14);
+    const clue = target.kind === 'resident' ? TEXT.residentClues[target.body.id]
+      : target.body.id === 'tarejiri' ? target.body.fullRemaining > 0 ? TEXT.tarejiriOut : TEXT.waitTarejiri : TEXT.clues[target.body.id];
+    ui.wrap(clue, 20, 116, 320, 14);
+    if (nearbySubjects(game).length > 1) ui.button(TEXT.changeSubject, 'change-subject', 16, 355, 160, 44);
   }
   ui.text(game.moving ? game.sneaking ? TEXT.sneaking : TEXT.walking : TEXT.still, 70, 614, 14, P.cream, 'center');
   if (game.escaped.size > 0) ui.wrap(TEXT.escaped, 18, 409, 320, 14);

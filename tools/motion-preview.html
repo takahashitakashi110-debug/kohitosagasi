@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>こひとさがし・動きの試作</title>
+<style>
+  body { margin: 20px; background: #eee8d4; color: #303d39; font: 16px system-ui; }
+  main { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; max-width: 1100px; }
+  article { padding: 12px; background: #fff9e8; border-radius: 12px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  canvas { background: #a3bba4; width: 100%; max-width: 260px; }
+</style>
+<h1>動きの試作</h1><p>こひと6体・町の大人4人・隠れ尻。各4コマを繰り返します。</p>
+<button id="pause">一時停止 / 再生</button><p id="frame"></p><main></main>
+<script type="module">
+import { KOHITO_IDS } from '/src/game/state.ts';
+import { RESIDENT_IDS } from '/src/data/townspeople.ts';
+import { TEXT } from '/src/data/text.ts';
+import { drawKohito } from '/src/render/kohitoArt.ts';
+import { drawResident } from '/src/render/townspeople.ts';
+import { motionFrame } from '/src/render/summerImages.ts';
+const cards = [...KOHITO_IDS.map(id => ({ id, name: TEXT.names[id] })),
+  ...RESIDENT_IDS.map(id => ({ id, name: TEXT.residentNames[id], human: true })),
+  { id: 'tarejiri', name: TEXT.names.tarejiri + '（隠れ姿）', hidden: true }].map(card => {
+  const element = document.createElement('article'); const heading = document.createElement('h2'); heading.textContent = card.name;
+  const canvas = document.createElement('canvas'); canvas.width = 260; canvas.height = 220;
+  element.append(heading, canvas); document.querySelector('main').append(element);
+  return { ...card, c: canvas.getContext('2d') };
+});
+let paused = false; let elapsed = 0; let previous = performance.now();
+document.querySelector('#pause').onclick = () => { paused = !paused; };
+function frame(now) {
+  if (!paused) elapsed += Math.min((now - previous) / 1000, 0.1); previous = now;
+  document.querySelector('#frame').textContent = `${motionFrame(elapsed) + 1} / 4`;
+  for (const card of cards) {
+    const c = card.c; c.clearRect(0, 0, 260, 220); c.save(); c.translate(130, 145); c.scale(2.4, 2.4);
+    if (card.human) drawResident(c, card.id, 0, 0, elapsed);
+    else drawKohito(c, card.id, 0, 0, elapsed, false, !!card.hidden, true);
+    c.restore();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></html>
