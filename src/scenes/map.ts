@@ -3,6 +3,7 @@ import { SPOT_IDS } from '../game/state';
 import type { SaveData } from '../game/state';
 import type { UI } from '../render/ui';
 import { P } from '../render/palette';
+import { drawSummerSpotIcon } from '../render/summer';
 
 export function drawMap(ui: UI, save: SaveData, choice = 0): void {
   const c = ui.ctx;
@@ -17,7 +18,7 @@ export function drawMap(ui: UI, save: SaveData, choice = 0): void {
     const x = i % 2 === 0 ? 24 : 196;
     const y = i < 2 ? 166 : 359;
     ui.panel(x, y - 38, 140, 115, P.sand);
-    c.fillStyle = P.wall; c.fillRect(x + 30, y - 25, 70, 35);
+    drawSummerSpotIcon(c, id, x + 4, y - 34);
     ui.button(TEXT.spots[id], `spot:${id}`, x, y + 24, 140, 48, choice === i);
   });
   ui.button(TEXT.home, 'home', 86, 473, 188, 44, choice === 4);

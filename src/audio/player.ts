@@ -1,10 +1,13 @@
 import { MASTER_VOLUME } from './plan';
 import type { Note } from './plan';
+import { SAMPLE_URLS } from './samples';
+import type { SampleKey } from './samples';
 
 export interface SoundPlayer {
   unlock(): void;
   play(notes: readonly Note[]): void;
   silence(): void;
+  playSample?(key: SampleKey): boolean;
 }
 interface Voice { source: AudioScheduledSourceNode; nodes: AudioNode[]; vibrato?: OscillatorNode }
 
@@ -13,6 +16,8 @@ export class WebAudioPlayer implements SoundPlayer {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private readonly voices = new Set<Voice>();
+  private readonly buffers = new Map<SampleKey, AudioBuffer>();
+  private requestedSamples = false;
   constructor(private readonly makeContext: () => AudioContext = () => new AudioContext()) {}
 
   unlock(): void {
@@ -23,7 +28,41 @@ export class WebAudioPlayer implements SoundPlayer {
         master.connect(context.destination); this.context = context; this.master = master;
       }
       if (this.context.state === 'suspended') void this.context.resume().catch(() => {});
+      this.preloadSamples(this.context);
     } catch { /* Web Audio非対応・利用不可でもゲームを止めない。 */ }
+  }
+  private preloadSamples(context: AudioContext): void {
+    if (this.requestedSamples || typeof window === 'undefined') return;
+    this.requestedSamples = true;
+    for (const key of Object.keys(SAMPLE_URLS) as SampleKey[]) {
+      void fetch(SAMPLE_URLS[key]).then(response => {
+        if (!response.ok) throw new Error('Unavailable local sound');
+        return response.arrayBuffer();
+      }).then(bytes => context.decodeAudioData(bytes)).then(buffer => {
+        this.buffers.set(key, buffer);
+      }).catch(() => { /* Keep the existing procedural fallback for this cue. */ });
+    }
+  }
+  playSample(key: SampleKey): boolean {
+    const context = this.context; const master = this.master; const buffer = this.buffers.get(key);
+    if (!context || !master || context.state !== 'running' || !buffer) return false;
+    const nodes: AudioNode[] = []; let source: AudioBufferSourceNode | undefined; let voice: Voice | undefined;
+    try {
+      source = context.createBufferSource(); source.buffer = buffer; nodes.push(source);
+      const gain = context.createGain(); gain.gain.value = 0.65; nodes.push(gain);
+      source.connect(gain); gain.connect(master);
+      voice = { source, nodes }; this.voices.add(voice);
+      const activeVoice = voice;
+      source.onended = () => { for (const node of nodes) node.disconnect(); this.voices.delete(activeVoice); };
+      const delay = key === 'hint' || key === 'resident' ? 0.18 : key === 'ending' ? 2 : 0;
+      source.start(context.currentTime + delay);
+      return true;
+    } catch {
+      try { source?.stop(); } catch { /* An unstarted source may reject stop. */ }
+      for (const node of nodes) { try { node.disconnect(); } catch { /* Already disconnected. */ } }
+      if (voice) this.voices.delete(voice);
+      return false;
+    }
   }
   play(notes: readonly Note[]): void {
     const context = this.context; const master = this.master;

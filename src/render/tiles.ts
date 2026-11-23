@@ -2,19 +2,36 @@ import { SPOTS, TILE_SIZE } from '../data/spots';
 import type { SpotId, TimeSlot } from '../game/state';
 import { P } from './palette';
 import { drawProps } from './props';
+import { drawSummerBuilding, drawSummerGarden, SUMMER } from './summer';
 
 export function drawTiles(ctx: CanvasRenderingContext2D, spot: SpotId): void {
+  ctx.save();
   SPOTS[spot].forEach((row, y) => row.forEach((tile, x) => {
     const px = x * TILE_SIZE;
     const py = y * TILE_SIZE;
-    ctx.fillStyle = tile === 1 ? P.concrete : tile === 2 ? P.grass : tile === 3 ? P.wall : tile === 4 ? P.wallLight : P.sand;
+    ctx.fillStyle = tile === 1 ? SUMMER.facade : tile === 2 ? SUMMER.grass : tile === 3 ? SUMMER.dry : tile === 4 ? SUMMER.paving : SUMMER.road;
     ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-    if (tile === 1) { ctx.fillStyle = P.wallLight; ctx.fillRect(px + 3, py + 3, 16, 3); }
-    if (tile === 2) { ctx.strokeStyle = P.muted; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px + 8, py + 15); ctx.lineTo(px + 10, py + 10); ctx.moveTo(px + 16, py + 20); ctx.lineTo(px + 15, py + 16); ctx.stroke(); }
-    if (tile === 3) { ctx.strokeStyle = P.shadow; ctx.strokeRect(px + 1, py + 1, 22, 22); }
+    if (tile === 0 || tile === 4) {
+      ctx.fillStyle = '#fff5d533'; ctx.fillRect(px + (x * 7 + y * 3) % 16, py + (y * 5) % 20, 3, 1);
+      if (tile === 4) { ctx.strokeStyle = '#8b9b8b40'; ctx.lineWidth = 0.7; ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE); }
+    }
+    if (tile === 2) { ctx.strokeStyle = SUMMER.leafLight; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px + 8, py + 15); ctx.lineTo(px + 10, py + 10); ctx.moveTo(px + 16, py + 20); ctx.lineTo(px + 15, py + 16); ctx.stroke(); }
+    if (tile === 3) { ctx.strokeStyle = '#7d80613d'; ctx.lineWidth = 1; ctx.strokeRect(px + 1, py + 1, 22, 22); }
   }));
+  // 連続した壁タイルを矩形に分け、区画を越えない建物として描く。
+  const seen = new Set<number>(); const tiles = SPOTS[spot];
+  for (let y = 1; y < tiles.length - 1; y++) for (let x = 1; x < tiles[y].length - 1; x++) {
+    if (tiles[y][x] !== 1 || seen.has(y * 24 + x)) continue;
+    let w = 1; let h = 1;
+    while (x + w < 23 && tiles[y][x + w] === 1 && !seen.has(y * 24 + x + w)) w++;
+    while (y + h < 31 && Array.from({ length: w }, (_, dx) => tiles[y + h][x + dx] === 1 && !seen.has((y + h) * 24 + x + dx)).every(Boolean)) h++;
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) seen.add((y + dy) * 24 + x + dx);
+    drawSummerBuilding(ctx, spot, x * 24, y * 24, w * 24, h * 24);
+  }
+  ctx.restore();
 }
 export function drawObjects(ctx: CanvasRenderingContext2D, spot: SpotId, time: TimeSlot, elapsed: number): void {
+  drawSummerGarden(ctx, spot);
   drawProps(ctx, spot);
   ctx.fillStyle = P.shadow; ctx.fillRect(261, 265, 61, 39);
   if (spot === 'ekimae') {
