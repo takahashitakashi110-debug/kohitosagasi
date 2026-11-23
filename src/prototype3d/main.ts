@@ -43,7 +43,7 @@ let time = 0,
   collectTime: number | null = null,
   showUntil = 0,
   alarm: number | null = null,
-  focus = 0,
+  focusedSince: number | null = null,
   zoomFov = 47;
 let behavior: Behavior = 'idle',
   evidence = { encounter: false, ecology: false },
@@ -101,7 +101,7 @@ function tone(hz: number, length: number, fall = 0.72) {
 }
 
 function refreshSave() {
-  const text = [t.statuses[journal.status]];
+  const text = [busyShot ? t.encoding : t.statuses[journal.status]];
   if (journal.damaged) text.push(t.damaged);
   if (brokenPhotos.size) text.push(t.badImage);
   if (failedCapture) text.push(t.encodeError);
@@ -130,7 +130,7 @@ function setMode(next: Mode) {
   root.dataset.mode = next;
   held.clear();
   drag = undefined;
-  focus = 0;
+  focusedSince = null;
   actionKey = '';
   cameraBtn.setAttribute('aria-pressed', String(next === 'camera'));
   if (next === 'walk' || next === 'camera') {
@@ -271,6 +271,7 @@ function refreshOpenBook() {
 async function shutter() {
   if (mode !== 'camera' || !ready || busyShot) return;
   busyShot = true;
+  refreshSave();
   try {
     drawFrame(0);
     const evidenceGranted = { ...evidence },
@@ -318,6 +319,7 @@ async function shutter() {
     say(t.encodeError);
   } finally {
     busyShot = false;
+    refreshSave();
   }
 }
 
@@ -326,7 +328,7 @@ function look(dx: number, dy: number) {
   if (!dx && !dy) return;
   view.yaw -= dx;
   view.pitch = Math.max(-1.22, Math.min(1.21, view.pitch - dy));
-  focus = 0;
+  focusedSince = null;
 }
 ui.canvas.addEventListener('contextmenu', (e) => {
   e.preventDefault();
@@ -363,7 +365,7 @@ ui.canvas.addEventListener(
     if (mode !== 'camera') return;
     e.preventDefault();
     zoomFov = Math.max(26, Math.min(64, zoomFov + Math.sign(e.deltaY) * 5));
-    focus = 0;
+    focusedSince = null;
   },
   { passive: false },
 );
@@ -396,7 +398,7 @@ window.addEventListener('keydown', (e) => {
   if ((e.code === 'ControlLeft' || e.code === 'ControlRight') && !e.repeat) {
     e.preventDefault();
     crouch = !crouch;
-    focus = 0;
+    focusedSince = null;
     return;
   }
   if (e.repeat) return;
@@ -419,17 +421,18 @@ window.addEventListener('keyup', (e) => held.delete(e.code));
 window.addEventListener('blur', () => {
   held.clear();
   drag = undefined;
-  focus = 0;
+  focusedSince = null;
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     held.clear();
     drag = undefined;
-    focus = 0;
+    focusedSince = null;
   }
 });
 
-function movePlayer(dt: number) {
+function movePlayer(elapsed: number) {
+  const dt = Math.min(elapsed, 0.18);
   const forward = Number(held.has('KeyW')) - Number(held.has('KeyS'));
   const side = Number(held.has('KeyD')) - Number(held.has('KeyA'));
   const yaw = Number(held.has('ArrowRight')) - Number(held.has('ArrowLeft'));
@@ -441,12 +444,12 @@ function movePlayer(dt: number) {
     const c = Math.cos(view.yaw),
       s = Math.sin(view.yaw);
     const p = move(view.x, view.z, (side * c - forward * s) * amount, (-forward * c - side * s) * amount);
-    if (p.x !== view.x || p.z !== view.z) focus = 0;
+    if (p.x !== view.x || p.z !== view.z) focusedSince = null;
     Object.assign(view, p);
     seated = false;
   }
   if (collectTime !== null) {
-    collectTime += dt;
+    collectTime += elapsed;
     if (collectTime >= 2.1) {
       collectTime = null;
       showUntil = time + 3.7;
@@ -457,7 +460,7 @@ function movePlayer(dt: number) {
   }
   if (rec().dayPart === 'morning' && collectTime === null) {
     const old = alarm;
-    alarm = nextAlarm(alarm, dist(actorSpot), Boolean(run && (forward || side)), dt);
+    alarm = nextAlarm(alarm, dist(actorSpot), Boolean(run && (forward || side)), elapsed);
     if (old === null && alarm !== null) {
       say(t.alarm);
       tone(390, 0.21);
@@ -497,8 +500,9 @@ function drawFrame(dt: number) {
   if (isCamera) {
     const sight = world.sight(behavior);
     const valid = evaluate(sight, 0).encounter;
-    if (!valid) focus = 0;
-    else focus += dt;
+    if (!valid) focusedSince = null;
+    else focusedSince ??= time;
+    const focus = focusedSince === null ? 0 : time - focusedSince;
     evidence = evaluate(sight, focus);
     const type = evidence.ecology
       ? 'ecology'
@@ -515,6 +519,7 @@ function drawFrame(dt: number) {
           : type === 'focus'
             ? t.focus
             : t.scenery;
+    if (valid && behavior === 'cheek' && !sight.nut) ui.focus.textContent = t.reframe;
     ui.focus.dataset.sight = type;
     ui.zoom.textContent = t.zoom(64 / view.fov);
   } else evidence = { encounter: false, ecology: false };
@@ -575,7 +580,7 @@ async function start() {
   refreshSave();
   let before = performance.now();
   const tick = (now: number) => {
-    const dt = Math.max(0, Math.min((now - before) / 1000, 0.18));
+    const dt = Math.max(0, Math.min((now - before) / 1000, 1));
     before = now;
     if (!document.hidden && (active() || actionKey === '')) drawFrame(dt);
     requestAnimationFrame(tick);

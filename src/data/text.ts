@@ -125,6 +125,8 @@ export const P0 = {
   friend: '交流',
   tick: '記録あり',
   blank: 'これから',
+  encoding: '撮影画像を取り込み中…',
+  reframe: '少し引くと、頬と木の実が一緒に写りそう。',
   statuses: {
     ready: '観察をはじめる',
     saving: '保存中…',

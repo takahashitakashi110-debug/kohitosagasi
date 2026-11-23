@@ -1,12 +1,14 @@
 import { expect, test } from '@playwright/test';
-import type { Locator, Page, TestInfo } from '@playwright/test';
+import type { Page, TestInfo } from '@playwright/test';
 import { PerspectiveCamera, Vector3 } from 'three';
 import type { Photo, Record3D } from '../src/prototype3d/rules';
 
 const url = '/prototype3d.html';
 const dbName = 'kohitosagasi-3d-p0-v1';
 const btn = (p: Page, name: string) => p.getByRole('button', { name, exact: true });
-const act = (p: Page, name: string) => btn(p, 'E　' + name);
+type Landmark = { selector: string; text: string; leave?: boolean };
+const action = (text: string): Landmark => ({ selector: '.actions button', text });
+const message = (text: string): Landmark => ({ selector: '.message', text });
 const errors = new WeakMap<Page, string[]>();
 
 test.beforeEach(async ({ page }) => {
@@ -31,22 +33,36 @@ test.afterEach(async ({ page }, info) => {
   expect(list).toEqual([]);
 });
 
-async function walk(p: Page, key: string, until: Locator) {
+async function walk(p: Page, key: string, until: Landmark) {
+  // Release the real key as the visible landmark changes on a rendered frame.
+  // Locator backoff can send the player several metres beyond the observation point.
   await p.keyboard.down(key);
   try {
-    await until.waitFor({ state: 'visible', timeout: 40000 });
+    await p.waitForFunction(
+      ({ selector, text, leave }) => {
+        const displayed = document.querySelector(selector)?.textContent?.includes(text) ?? false;
+        return leave ? !displayed : displayed;
+      },
+      until,
+      { polling: 'raf', timeout: 40000 },
+    );
   } finally {
     await p.keyboard.up(key);
   }
 }
+async function stepBackToObserve(p: Page) {
+  await expect(btn(p, 'E　葉の上の実を調べる')).toBeVisible();
+  await walk(p, 's', { ...action('葉の上の実を調べる'), leave: true });
+}
 async function investigate(p: Page) {
-  await walk(p, 'w', act(p, '葉の上の実を調べる'));
+  await walk(p, 'w', action('葉の上の実を調べる'));
   await p.keyboard.press('e');
   await btn(p, '葉の上の実を調べる').click();
   await expect(p.locator('.message')).toContainText('殻の左右');
+  await stepBackToObserve(p);
 }
 async function home(p: Page) {
-  await walk(p, 's', act(p, '自室でできること'));
+  await walk(p, 's', action('自室でできること'));
 }
 async function book(p: Page) {
   await btn(p, '観察手帳').click();
@@ -54,11 +70,16 @@ async function book(p: Page) {
 }
 async function shoot(p: Page, sight: 'encounter' | 'ecology') {
   // Shoot through the normal left mouse binding while the rendered finder shows the desired pose.
-  const mark = p.locator('.focus[data-sight="' + sight + '"]');
-  await expect(mark).toBeVisible({ timeout: 25000 });
+  const atPose = (wanted: string) => document.querySelector<HTMLElement>('.focus')?.dataset.sight === wanted;
+  await p.waitForFunction(
+    (wanted) => document.querySelector<HTMLElement>('.focus')?.dataset.sight !== wanted,
+    sight,
+    { polling: 'raf', timeout: 25000 },
+  );
+  await p.waitForFunction(atPose, sight, { polling: 'raf', timeout: 25000 });
   const size = p.viewportSize()!;
   await p.mouse.click(size.width / 2, size.height / 2);
-  await expect(p.locator('.save-state')).toContainText('保存済み');
+  await expect(p.locator('.save-state')).toContainText('保存済み', { timeout: 20000 });
 }
 async function screenshot(p: Page, info: TestInfo, name: string) {
   await p.screenshot({ path: info.outputPath(name + '.png') });
@@ -281,7 +302,7 @@ test('walk, photograph two compositions, select either print and restore the exa
     contentType: 'application/json',
   });
   await p.keyboard.press('Escape');
-  await walk(p, 'w', act(p, '葉の上の実を調べる'));
+  await walk(p, 'w', action('葉の上の実を調べる'));
   await expect(p.locator('.hint')).toContainText('木の実が好き');
   expect(
     await p.evaluate(() => [
@@ -308,26 +329,27 @@ test('first ecology shot alone, optional trust, scare recovery, sitting and four
   const single = await saved(p);
   expect(single.record).toMatchObject({ trustEventSeen: false, notes: {}, dayPart: 'morning' });
   await p.keyboard.press('Escape');
-  await walk(p, 'w', act(p, '葉の上の実を調べる'));
+  await walk(p, 'w', action('葉の上の実を調べる'));
   await p.keyboard.down('Shift');
   try {
-    await walk(p, 'w', p.locator('.message').filter({ hasText: 'むむっ' }));
+    await walk(p, 'w', message('むむっ'));
   } finally {
     await p.keyboard.up('Shift');
   }
-  await walk(p, 's', p.locator('.message').filter({ hasText: 'またのぞいた' }));
-  await walk(p, 'w', act(p, '葉の上の実を調べる'));
+  await walk(p, 's', message('またのぞいた'));
+  await walk(p, 'w', action('葉の上の実を調べる'));
+  await stepBackToObserve(p);
   await btn(p, 'カメラ').click();
   await shoot(p, 'ecology');
   await expect.poll(async () => (await saved(p)).photos.length).toBe(2);
   await p.keyboard.press('Escape');
   await p.keyboard.press('e');
   await btn(p, '転がった実を拾う').click();
-  await walk(p, 'w', act(p, '実を葉の上へ返す'));
+  await walk(p, 'w', action('実を葉の上へ返す'));
   await p.keyboard.press('e');
   await btn(p, '実を葉の上へ返す').click();
   await expect.poll(async () => (await saved(p)).record?.trustEventSeen, { timeout: 10000 }).toBe(true);
-  await walk(p, 's', act(p, '小道のベンチ'));
+  await walk(p, 's', action('小道のベンチ'));
   await p.keyboard.press('e');
   await btn(p, '腰を下ろす').click();
   await expect(p.locator('.when')).toHaveText('1日目 · 朝');
@@ -363,6 +385,7 @@ test('first ecology shot alone, optional trust, scare recovery, sitting and four
 test('typing and closing a notebook cannot move the camera or release the shutter', async ({ page: p }) => {
   await btn(p, 'カメラ').click();
   await p.keyboard.press('Space');
+  await expect(p.locator('.save-state')).toContainText('保存済み', { timeout: 20000 });
   await expect.poll(async () => (await saved(p)).photos.length).toBe(1);
   await p.keyboard.press('Tab');
   await p.getByLabel('この写真の自由メモ').focus();
@@ -378,6 +401,7 @@ test('typing and closing a notebook cannot move the camera or release the shutte
   await p.getByLabel('この写真の自由メモ').focus();
   await p.keyboard.press('Escape');
   await p.keyboard.press('Space');
+  await expect(p.locator('.save-state')).toContainText('保存済み', { timeout: 20000 });
   await expect.poll(async () => (await saved(p)).photos.length).toBe(2);
   const { photos, record } = await saved(p);
   expect(photos[1].view).toEqual(photos[0].view);
@@ -398,11 +422,13 @@ test('an aborted Blob transaction stays unsaved, retries atomically, and broken 
   });
   await btn(p, 'カメラ').click();
   await p.keyboard.press('Space');
-  await expect(p.locator('.save-state')).toContainText('未保存');
+  await expect(p.locator('.save-state')).toContainText('未保存', { timeout: 20000 });
   expect(await saved(p)).toEqual({ record: undefined, photos: [] });
   await p.keyboard.press('Tab');
   await expect(p.locator('.print > img')).toBeVisible();
   await btn(p, 'この写真を飾る').click();
+  await expect(p.locator('.panel-save')).toContainText('未保存', { timeout: 20000 });
+  expect(await saved(p)).toEqual({ record: undefined, photos: [] });
   await p.evaluate(() => sessionStorage.removeItem('qa-fail'));
   await p.getByRole('dialog').getByRole('button', { name: '保存を再試行' }).click();
   await expect.poll(async () => (await saved(p)).photos.length).toBe(1);
