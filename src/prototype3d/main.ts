@@ -17,6 +17,7 @@ import {
 import type { Behavior, Photo } from './rules';
 import { Journal } from './storage';
 import { World } from './world';
+import { loadCoat } from './hohomochi';
 import type { View } from './world';
 import { button, element, makeShell, Notebook, tool } from './interface';
 import { mountTouchControls } from './touch';
@@ -608,7 +609,7 @@ function drawFrame(dt: number) {
 
 async function start() {
   try {
-    world = new World(ui.canvas);
+    world = new World(ui.canvas, await loadCoat());
   } catch {
     root.replaceChildren(element('p', 'warning', t.fatal));
     return;

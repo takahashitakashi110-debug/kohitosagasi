@@ -11,6 +11,10 @@
 
 ## 一人称3D試作「ほほもちの朝」　2026-11-23
 
+11月28日、持ち主が11月27日に採用した三面図 `hohomochi-20261127-v01` の顔・肌・背中の模様を、頬と胴をつないだ暫定3D造形に投影しました。手足と尾は立体で、手と木の実が独立して動きます。朝のしぐさの合間に振り向き、道から背中を観察できます。
+
+配布するメッシュと肌の画像は `src/prototype3d/assets/hohomochi.glb` に同梱しています。再作成する場合は、NumPy、Pillow、OpenCV が使える Python で `python scripts/model_hohomochi.py <approved-hohomochi-three-view.png>` を実行します。採用原画の SHA-256 を照合してから作成します。通常のゲームのビルドには Python や原画は不要です。
+
 スマートフォンの試遊URLは [3D版GitHub Pages](https://takahashitakashi110-debug.github.io/kohitosagasi-3d-play/) です。左下の移動スティックと景色のドラッグを同時に使えます。撮影とズームは画面ボタンにあります。公開用は `npm.cmd run build:3d-pages` で作り、`dist/3d-pages/` の中身を [配布専用リポジトリ](https://github.com/takahashitakashi110-debug/kohitosagasi-3d-play) の `gh-pages` ブランチ直下へ配信します。戻す場合は配布コミットをrevertします。テストは `npm.cmd run e2e -- touch3d.spec.ts` で縦・横のタッチ操作と写真復元を検査します。
 
 [依頼 #28](https://github.com/takahashitakashi110-debug/kohitosagasi/issues/28) と [PR #27](https://github.com/takahashitakashi110-debug/kohitosagasi/pull/27) を使用。作業ブランチは `codex/hohomochi-p0`、分岐元は本流 `4496b6e`。[P0の受入条件と後続設計](./REQUEST_P0_HOHOMOCHI.md) が3D側の引き継ぎ先です。この節以降に記載した従来のゲーム仕様は2D版のものです。

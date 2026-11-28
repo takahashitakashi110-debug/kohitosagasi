@@ -1,7 +1,8 @@
 import * as T from 'three';
-import { buildStreet, nut, oval } from './scenery';
+import { buildStreet, oval } from './scenery';
 import { FeatureVisibility } from './visibility';
-import { actorSpot, leafSpot, looseSpot, tuning } from './rules';
+import { buildCharacter, poseCharacter } from './hohomochi';
+import { actorSpot, leafSpot, looseSpot } from './rules';
 import type { Behavior, Period, Sighting, Photo } from './rules';
 
 export type View = Photo['cameraTransform'];
@@ -12,57 +13,6 @@ const palettes: Record<Period, [string, string, string, number]> = {
   night: ['#424f6f', '#bfcbe5', '#7f88a9', 0.65],
 };
 
-function buildCharacter(scene: T.Scene) {
-  const root = new T.Group();
-  scene.add(root);
-  const figure = new T.Group();
-  root.add(figure);
-  oval(figure, '#e2bc89', 0, 0.36, -0.03, 0.34, 0.36, 0.26);
-  oval(figure, '#f4dfae', 0, 0.35, 0.173, 0.236, 0.246, 0.105);
-  for (const side of [-1, 1]) {
-    oval(figure, '#ae8861', side * 0.2, 0.075, 0.045, 0.154, 0.079, 0.153);
-    const ear = oval(figure, '#ddbd91', side * 0.325, 1.02, -0.065, 0.104, 0.16, 0.078);
-    ear.rotation.z = -side * 0.63;
-  }
-  oval(figure, '#f2d5a9', 0, 0.79, 0, 0.44, 0.35, 0.32);
-  const cheeks: T.Mesh[] = [];
-  for (const sign of [-1, 1]) {
-    const cheek = oval(figure, '#efa98c', sign * 0.305, 0.711, 0.152, 0.243, 0.204, 0.193);
-    cheek.userData.feature = 'cheek';
-    cheeks.push(cheek);
-    for (let i = 0; i < 3; i++) {
-      const freckle = oval(
-        figure,
-        '#c88b74',
-        sign * (0.295 + i * 0.039),
-        0.734 + (i % 2) * 0.026,
-        0.342 - i * 0.008,
-        0.014,
-        0.0085,
-        0.009,
-      );
-      freckle.userData.feature = 'cheek';
-    }
-    const eye = oval(figure, '#514338', sign * 0.156, 0.868, 0.277, 0.044, 0.057, 0.032);
-    oval(eye, '#fff3d3', -0.25, 0.34, 0.85, 0.26, 0.23, 0.19);
-    const brow = oval(figure, '#ad8b68', sign * 0.159, 0.964, 0.241, 0.05, 0.013, 0.018);
-    brow.rotation.z = sign * 0.08;
-  }
-  oval(figure, '#a6745c', 0, 0.777, 0.32, 0.042, 0.025, 0.021);
-  oval(figure, '#785648', 0, 0.712, 0.314, 0.036, 0.019, 0.014);
-  const tuft = oval(figure, '#839e64', 0.045, 1.136, -0.035, 0.071, 0.148, 0.036);
-  tuft.rotation.z = -0.68;
-  const sprout = oval(figure, '#adbb72', -0.03, 1.115, -0.038, 0.052, 0.101, 0.035);
-  sprout.rotation.z = 0.62;
-  const hands = [-1, 1].map((s) => oval(figure, '#e7bd8e', s * 0.132, 0.43, 0.36, 0.077, 0.076, 0.067));
-  const held = nut(figure, 0, 0.42, 0.36, 0.12);
-  held.group.traverse((n) => {
-    n.userData.feature = 'nut';
-  });
-  const shadow = oval(scene, '#83825b', actorSpot.x, 0.504, actorSpot.z, 0.52, 0.009, 0.33);
-  return { root, figure, cheeks, hands, held, shadow };
-}
-
 export class World {
   readonly renderer: T.WebGLRenderer;
   readonly scene = new T.Scene();
@@ -71,6 +21,8 @@ export class World {
   private sky = new T.HemisphereLight();
   private set: ReturnType<typeof buildStreet>;
   private actor: ReturnType<typeof buildCharacter>;
+  private actorRoot = new T.Group();
+  private shadow: T.Mesh;
   private visibility = new FeatureVisibility();
   private pictureURL = '';
   private frameGeneration = 0;
@@ -79,7 +31,7 @@ export class World {
   private lastHeight = 0;
   private stillView: string | null = null;
 
-  constructor(readonly canvas: HTMLCanvasElement) {
+  constructor(readonly canvas: HTMLCanvasElement, coat: T.Group) {
     this.renderer = new T.WebGLRenderer({
       canvas,
       antialias: true,
@@ -90,7 +42,10 @@ export class World {
     this.scene.add(this.sky, this.sun);
     this.sun.position.set(-7, 12, 8);
     this.set = buildStreet(this.scene);
-    this.actor = buildCharacter(this.scene);
+    this.actor = buildCharacter(coat);
+    this.scene.add(this.actorRoot);
+    this.actorRoot.add(this.actor.figure);
+    this.shadow = oval(this.scene, '#83825b', actorSpot.x, .504, actorSpot.z, .49, .009, .34);
   }
 
   render(
@@ -148,7 +103,7 @@ export class World {
       this.camera.fov = view.fov;
       this.camera.updateProjectionMatrix();
     }
-    const { root, figure, hands, held, shadow, cheeks } = this.actor;
+    const root = this.actorRoot, shadow = this.shadow;
     root.visible = behavior !== 'absent' && behavior !== 'hidden';
     shadow.visible = root.visible;
     const walk = behavior === 'collect' ? Math.sin(Math.PI * collection) : 0;
@@ -159,25 +114,7 @@ export class World {
     );
     shadow.position.x = root.position.x;
     shadow.position.z = root.position.z;
-    figure.position.y = Math.sin(t * 2.6) * 0.013 + Math.abs(Math.sin(t * 12)) * walk * 0.045;
-    figure.rotation.z = Math.sin(t * 1.7) * 0.021;
-    const phase = t % tuning.cycle;
-    let press = 0;
-    if (behavior === 'cheek') press = 1;
-    if (behavior === 'regrip') press = T.MathUtils.smoothstep(phase, tuning.regripStart, tuning.cheekStart);
-    if (behavior === 'idle' && phase >= tuning.cheekEnd)
-      press = 1 - T.MathUtils.smoothstep(phase, tuning.cheekEnd, tuning.cheekEnd + 0.55);
-    const show = behavior === 'show' ? 1 : 0;
-    const px = 0.355 * press,
-      py = 0.395 + 0.296 * press + 0.166 * show - 0.15 * walk,
-      pz = 0.328 + 0.075 * press + 0.16 * show;
-    held.group.visible = behavior !== 'collect' || collection >= 0.5;
-    held.group.position.set(px, py, pz);
-    held.group.rotation.z = 0.26 * press;
-    for (let i = 0; i < 2; i++) {
-      hands[i].position.set(px + (i ? 1 : -1) * 0.117, py - 0.058, pz + 0.016);
-      cheeks[i].scale.y = 0.204 + show * 0.032 + (i ? press * 0.015 : 0);
-    }
+    poseCharacter(this.actor, behavior, t, collection, trusted);
     this.set.loose.visible =
       period === 'morning' && !carrying && !trusted && (behavior !== 'collect' || collection < 0.5);
     if (behavior === 'collect') this.set.loose.position.set(leafSpot.x, 0.31, leafSpot.z);
@@ -186,9 +123,9 @@ export class World {
   }
 
   sight(behavior: Behavior): Sighting {
-    const distance = this.camera.position.distanceTo(this.actor.root.position);
+    const distance = this.camera.position.distanceTo(this.actorRoot.position);
     const empty = { distance, heightFraction: 0, cheek: false, nut: false, behavior };
-    if (!this.actor.root.visible || distance > 9) return empty;
+    if (!this.actorRoot.visible || distance > 9) return empty;
     const head = this.actor.cheeks[0].getWorldPosition(new T.Vector3());
     const low = head
       .clone()
@@ -199,7 +136,7 @@ export class World {
       .add(new T.Vector3(0, 0.45, 0))
       .project(this.camera);
     const surfaces: T.Object3D[] = [...this.set.occluders];
-    for (const item of [this.actor.root, this.actor.shadow, this.set.loose, this.set.frame])
+    for (const item of [this.actorRoot, this.shadow, this.set.loose, this.set.frame])
       item.traverseVisible((n) => {
         if (n instanceof T.Mesh) surfaces.push(n);
       });
